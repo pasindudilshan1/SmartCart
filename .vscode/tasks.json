@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flutter: Get Packages",
+      "type": "shell",
+      "command": "flutter pub get",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Generate Hive Adapters",
+      "type": "shell",
+      "command": "flutter pub run build_runner build --delete-conflicting-outputs",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Clean",
+      "type": "shell",
+      "command": "flutter clean",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Build APK",
+      "type": "shell",
+      "command": "flutter build apk --release",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Build App Bundle",
+      "type": "shell",
+      "command": "flutter build appbundle --release",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Analyze",
+      "type": "shell",
+      "command": "flutter analyze",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
