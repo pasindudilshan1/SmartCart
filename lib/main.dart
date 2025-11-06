@@ -15,23 +15,24 @@ import 'models/sustainability.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase
   await Firebase.initializeApp();
-  
+
   // Initialize Hive
   await Hive.initFlutter();
-  
+
   // Register Hive Adapters
   Hive.registerAdapter(ProductAdapter());
   Hive.registerAdapter(DailyNutritionAdapter());
   Hive.registerAdapter(NutritionGoalsAdapter());
   Hive.registerAdapter(SustainabilityMetricsAdapter());
-  
+
   // Open Hive boxes
   await Hive.openBox('products');
   await Hive.openBox('settings');
-  
+  await Hive.openBox('nutrition');
+
   runApp(const SmartCartApp());
 }
 
@@ -71,10 +72,10 @@ class SmartCartApp extends StatelessWidget {
                 body: Center(child: CircularProgressIndicator()),
               );
             }
-            
+
             // Check authentication status
             final authService = Provider.of<AuthService>(context, listen: false);
-            
+
             if (snapshot.data == true) {
               // First launch - show onboarding
               return const OnboardingScreen();

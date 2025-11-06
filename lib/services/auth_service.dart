@@ -19,11 +19,11 @@ class AuthService extends ChangeNotifier {
         email: email,
         password: password,
       );
-      
+
       // Update user profile with name
       await result.user?.updateDisplayName(name);
       await result.user?.reload();
-      
+
       notifyListeners();
       return null; // Success
     } on FirebaseAuthException catch (e) {
@@ -74,7 +74,7 @@ class AuthService extends ChangeNotifier {
     try {
       // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
+
       if (googleUser == null) {
         return 'Google sign-in was cancelled.';
       }
@@ -94,6 +94,19 @@ class AuthService extends ChangeNotifier {
       return null; // Success
     } catch (e) {
       return 'Google sign-in failed: $e';
+    }
+  }
+
+  // Sign in anonymously (for development/testing)
+  Future<String?> signInAnonymously() async {
+    try {
+      await _auth.signInAnonymously();
+      notifyListeners();
+      return null; // Success
+    } on FirebaseAuthException catch (e) {
+      return 'Anonymous sign-in failed: ${e.message}';
+    } catch (e) {
+      return 'An unexpected error occurred.';
     }
   }
 

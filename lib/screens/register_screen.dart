@@ -78,6 +78,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Google Sign-In not configured. Please use "Continue as Guest" or email sign-up.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _continueAsGuest() async {
+    setState(() => _isLoading = true);
+
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final error = await authService.signInAnonymously();
+
+    setState(() => _isLoading = false);
+
+    if (error == null) {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
             backgroundColor: Colors.red,
@@ -110,25 +138,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
-                  
+
                   Text(
                     'Join SmartCart',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  
+
                   Text(
                     'Start reducing food waste today',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                          color: Colors.grey[600],
+                        ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Name field
                   TextFormField(
                     controller: _nameController,
@@ -146,7 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Email field
                   TextFormField(
                     controller: _emailController,
@@ -167,7 +195,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Password field
                   TextFormField(
                     controller: _passwordController,
@@ -197,7 +225,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Confirm password field
                   TextFormField(
                     controller: _confirmPasswordController,
@@ -226,7 +254,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Sign up button
                   ElevatedButton(
                     onPressed: _isLoading ? null : _signUp,
@@ -242,7 +270,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         : const Text('Sign Up'),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Divider
                   Row(
                     children: [
@@ -258,7 +286,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Google sign up button
                   OutlinedButton.icon(
                     onPressed: _isLoading ? null : _signUpWithGoogle,
@@ -269,13 +297,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
+                  // Continue as Guest button
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _continueAsGuest,
+                    icon: const Icon(Icons.person_outline),
+                    label: const Text('Continue as Guest'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   // Terms and conditions
                   Text(
                     'By signing up, you agree to our Terms of Service and Privacy Policy',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                          color: Colors.grey[600],
+                        ),
                     textAlign: TextAlign.center,
                   ),
                 ],

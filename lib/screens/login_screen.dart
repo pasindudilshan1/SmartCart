@@ -73,6 +73,33 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google Sign-In not configured. Please use "Continue as Guest" instead.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _continueAsGuest() async {
+    setState(() => _isLoading = true);
+
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final error = await authService.signInAnonymously();
+
+    setState(() => _isLoading = false);
+
+    if (error == null) {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
             backgroundColor: Colors.red,
@@ -129,27 +156,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Title
                   Text(
                     'SmartCart',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  
+
                   Text(
                     'Reduce food waste, one scan at a time',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                          color: Colors.grey[600],
+                        ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
-                  
+
                   // Email field
                   TextFormField(
                     controller: _emailController,
@@ -170,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Password field
                   TextFormField(
                     controller: _passwordController,
@@ -199,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Forgot password
                   Align(
                     alignment: Alignment.centerRight,
@@ -209,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Sign in button
                   ElevatedButton(
                     onPressed: _isLoading ? null : _signIn,
@@ -225,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Text('Sign In'),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Divider
                   Row(
                     children: [
@@ -241,7 +268,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Google sign in button
                   OutlinedButton.icon(
                     onPressed: _isLoading ? null : _signInWithGoogle,
@@ -251,8 +278,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // Continue as Guest button
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _continueAsGuest,
+                    icon: const Icon(Icons.person_outline),
+                    label: const Text('Continue as Guest'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  
+
                   // Sign up link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
