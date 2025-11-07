@@ -26,7 +26,6 @@ class NutritionScreen extends StatelessWidget {
       body: Consumer<NutritionProvider>(
         builder: (context, nutritionProvider, child) {
           final todayNutrition = nutritionProvider.todayNutrition;
-          final goals = nutritionProvider.goals;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -48,9 +47,10 @@ class NutritionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTodayCard(BuildContext context, dynamic todayNutrition, NutritionProvider provider) {
+  Widget _buildTodayCard(BuildContext context, dynamic todayNutrition,
+      NutritionProvider provider) {
     final isOverLimit = provider.isCalorieLimitExceeded;
-    
+
     return Card(
       color: isOverLimit ? Colors.red.shade50 : null,
       child: Padding(
@@ -65,16 +65,17 @@ class NutritionScreen extends StatelessWidget {
                   'Today\'s Nutrition',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                if (isOverLimit)
-                  const Icon(Icons.warning, color: Colors.red),
+                if (isOverLimit) const Icon(Icons.warning, color: Colors.red),
               ],
             ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNutrientColumn('Calories', todayNutrition.totalCalories, 'kcal'),
-                _buildNutrientColumn('Protein', todayNutrition.totalProtein, 'g'),
+                _buildNutrientColumn(
+                    'Calories', todayNutrition.totalCalories, 'kcal'),
+                _buildNutrientColumn(
+                    'Protein', todayNutrition.totalProtein, 'g'),
                 _buildNutrientColumn('Carbs', todayNutrition.totalCarbs, 'g'),
                 _buildNutrientColumn('Fat', todayNutrition.totalFat, 'g'),
               ],
@@ -94,7 +95,8 @@ class NutritionScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'You\'ve exceeded your daily calorie goal!',
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: Colors.red, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -119,7 +121,7 @@ class NutritionScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '${value.toStringAsFixed(0)}',
+          value.toStringAsFixed(0),
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -160,7 +162,8 @@ class NutritionScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(label,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
                 Text('${progress.toStringAsFixed(0)}%'),
               ],
             ),
@@ -201,25 +204,39 @@ class NutritionScreen extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
-                          const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                          if (value.toInt() >= 0 && value.toInt() < days.length) {
-                            return Text(days[value.toInt()], style: const TextStyle(fontSize: 10));
+                          const days = [
+                            'Mon',
+                            'Tue',
+                            'Wed',
+                            'Thu',
+                            'Fri',
+                            'Sat',
+                            'Sun'
+                          ];
+                          if (value.toInt() >= 0 &&
+                              value.toInt() < days.length) {
+                            return Text(days[value.toInt()],
+                                style: const TextStyle(fontSize: 10));
                           }
                           return const Text('');
                         },
                       ),
                     ),
                     leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+                      sideTitles:
+                          SideTitles(showTitles: true, reservedSize: 40),
                     ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   borderData: FlBorderData(show: true),
                   lineBarsData: [
                     LineChartBarData(
                       spots: weeklyData.asMap().entries.map((entry) {
-                        return FlSpot(entry.key.toDouble(), entry.value.totalCalories);
+                        return FlSpot(
+                            entry.key.toDouble(), entry.value.totalCalories);
                       }).toList(),
                       isCurved: true,
                       color: Colors.green,
@@ -268,11 +285,15 @@ class NutritionScreen extends StatelessWidget {
   void _showGoalsDialog(BuildContext context) {
     final provider = context.read<NutritionProvider>();
     final goals = provider.goals;
-    
-    final calorieController = TextEditingController(text: goals.dailyCalorieGoal.toString());
-    final proteinController = TextEditingController(text: goals.dailyProteinGoal.toString());
-    final carbsController = TextEditingController(text: goals.dailyCarbsGoal.toString());
-    final fatController = TextEditingController(text: goals.dailyFatGoal.toString());
+
+    final calorieController =
+        TextEditingController(text: goals.dailyCalorieGoal.toString());
+    final proteinController =
+        TextEditingController(text: goals.dailyProteinGoal.toString());
+    final carbsController =
+        TextEditingController(text: goals.dailyCarbsGoal.toString());
+    final fatController =
+        TextEditingController(text: goals.dailyFatGoal.toString());
 
     showDialog(
       context: context,
@@ -284,12 +305,14 @@ class NutritionScreen extends StatelessWidget {
             children: [
               TextField(
                 controller: calorieController,
-                decoration: const InputDecoration(labelText: 'Daily Calories (kcal)'),
+                decoration:
+                    const InputDecoration(labelText: 'Daily Calories (kcal)'),
                 keyboardType: TextInputType.number,
               ),
               TextField(
                 controller: proteinController,
-                decoration: const InputDecoration(labelText: 'Daily Protein (g)'),
+                decoration:
+                    const InputDecoration(labelText: 'Daily Protein (g)'),
                 keyboardType: TextInputType.number,
               ),
               TextField(

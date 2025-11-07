@@ -3,12 +3,11 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.SmartCart"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -26,9 +25,9 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0.0"
         multiDexEnabled = true
     }
 
@@ -43,6 +42,30 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// Copy APK to the location Flutter expects
+tasks.register("copyApkToFlutterBuild") {
+    doLast {
+        val flutterApkDir = File(project.rootDir.parent, "build/app/outputs/flutter-apk")
+        val androidApkDir = File(project.buildDir, "outputs/flutter-apk")
+        
+        if (androidApkDir.exists()) {
+            flutterApkDir.mkdirs()
+            androidApkDir.listFiles()?.forEach { apkFile ->
+                if (apkFile.isFile) {
+                    apkFile.copyTo(File(flutterApkDir, apkFile.name), overwrite = true)
+                    println("Copied ${apkFile.name} to ${flutterApkDir.absolutePath}")
+                }
+            }
+        }
+    }
+}
+
+tasks.whenTaskAdded {
+    if (name == "assembleDebug" || name == "assembleRelease" || name == "assembleProfile") {
+        finalizedBy("copyApkToFlutterBuild")
+    }
 }
 
 dependencies {

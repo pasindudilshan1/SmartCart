@@ -1,6 +1,4 @@
 import 'package:dio/dio.dart';
-import '../models/product.dart';
-import '../models/nutrition.dart';
 
 class BarcodeService {
   final Dio _dio = Dio();
@@ -30,11 +28,13 @@ class BarcodeService {
   }
 
   // Parse product data from Open Food Facts API
-  Map<String, dynamic> _parseProductData(Map<String, dynamic> data, String barcode) {
+  Map<String, dynamic> _parseProductData(
+      Map<String, dynamic> data, String barcode) {
     // Extract basic product info
     final productInfo = {
       'barcode': barcode,
-      'name': data['product_name'] ?? data['product_name_en'] ?? 'Unknown Product',
+      'name':
+          data['product_name'] ?? data['product_name_en'] ?? 'Unknown Product',
       'brand': data['brands'] ?? '',
       'category': _extractCategory(data),
       'imageUrl': data['image_url'] ?? data['image_front_url'],
@@ -54,7 +54,8 @@ class BarcodeService {
 
   // Extract category from product data
   String _extractCategory(Map<String, dynamic> data) {
-    if (data['categories'] != null && data['categories'].toString().isNotEmpty) {
+    if (data['categories'] != null &&
+        data['categories'].toString().isNotEmpty) {
       final categories = data['categories'].toString().split(',');
       if (categories.isNotEmpty) {
         return categories.first.trim();
@@ -118,7 +119,8 @@ class BarcodeService {
       'packagingInfo': data['packaging'] ?? '',
       'origins': data['origins'] ?? '',
       'labels': data['labels'] ?? '',
-      'carbonFootprint': _getDoubleValue(data['ecoscore_data'] ?? {}, 'adjustments.production_system.value'),
+      'carbonFootprint': _getDoubleValue(
+          data['ecoscore_data'] ?? {}, 'adjustments.production_system.value'),
     };
   }
 

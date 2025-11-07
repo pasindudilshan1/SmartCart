@@ -1,19 +1,27 @@
 // Copilot Task 4: Nutrition Provider - State Management for Nutrition Tracking
-// Manages daily nutrition tracking and goals
+// Manages daily nutrition tracking and goals with Azure Table sync
 
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/nutrition.dart';
+import '../services/azure_table_service.dart';
 
 class NutritionProvider extends ChangeNotifier {
   late Box _nutritionBox;
   late Box _settingsBox;
-  
+  final AzureTableService _azureService = AzureTableService();
+  String? _currentUserId;
+
   DailyNutrition? _todayNutrition;
   NutritionGoals _goals = NutritionGoals();
 
   DailyNutrition get todayNutrition => _todayNutrition ?? DailyNutrition(date: DateTime.now());
   NutritionGoals get goals => _goals;
+
+  /// Set the current user ID (call this after login)
+  void setUserId(String? userId) {
+    _currentUserId = userId;
+  }
 
   NutritionProvider() {
     _init();
@@ -29,7 +37,7 @@ class NutritionProvider extends ChangeNotifier {
   void _loadTodayNutrition() {
     final today = DateTime.now();
     final todayKey = '${today.year}-${today.month}-${today.day}';
-    
+
     _todayNutrition = _nutritionBox.get(todayKey);
     if (_todayNutrition == null) {
       _todayNutrition = DailyNutrition(date: today);
@@ -55,11 +63,20 @@ class NutritionProvider extends ChangeNotifier {
     required String productId,
   }) async {
     _todayNutrition?.addNutrition(calories, protein, carbs, fat, productId);
-    
+
     final today = DateTime.now();
     final todayKey = '${today.year}-${today.month}-${today.day}';
     await _nutritionBox.put(todayKey, _todayNutrition);
-    
+
+    // Sync to Azure
+    if (_currentUserId != null && _todayNutrition != null) {
+      try {
+        await _azureService.updateNutrition(_currentUserId!, _todayNutrition!);
+      } catch (e) {
+        debugPrint('Error syncing nutrition to Azure: $e');
+      }
+    }
+
     notifyListeners();
   }
 
@@ -67,10 +84,24 @@ class NutritionProvider extends ChangeNotifier {
   Future<void> updateGoals(NutritionGoals newGoals) async {
     _goals = newGoals;
     await _settingsBox.put('nutrition_goals', newGoals);
-    notifyListeners();
-  }
 
-  // Check if calorie limit exceeded
+    // Sync to Azure
+    if (_currentUserId != null) {
+      try {
+        await _azureService.updateUserSettings(_currentUserId!, {
+          'CalorieGoal': newGoals.dailyCalorieGoal,
+          'ProteinGoal': newGoals.dailyProteinGoal,
+          'CarbGoal': newGoals.dailyCarbsGoal,
+          'FatGoal': newGoals.dailyFatGoal,
+        });
+      } catch (e) {
+        debugPrint('Error syncing goals to Azure: $e');
+      }
+    }
+
+    notifyListeners();
+  } // Check if calorie limit exceeded
+
   bool get isCalorieLimitExceeded {
     return _goals.isCalorieLimitExceeded(todayNutrition.totalCalories);
   }
@@ -91,14 +122,14 @@ class NutritionProvider extends ChangeNotifier {
   List<DailyNutrition> getWeeklyNutrition() {
     final now = DateTime.now();
     final weekData = <DailyNutrition>[];
-    
+
     for (int i = 6; i >= 0; i--) {
       final date = now.subtract(Duration(days: i));
       final dateKey = '${date.year}-${date.month}-${date.day}';
       final dayNutrition = _nutritionBox.get(dateKey) ?? DailyNutrition(date: date);
       weekData.add(dayNutrition);
     }
-    
+
     return weekData;
   }
 

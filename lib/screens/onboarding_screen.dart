@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:introduction_screen/introduction_screen.dart';
-import 'home_screen.dart';
+import 'login_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -13,32 +13,36 @@ class OnboardingScreen extends StatelessWidget {
     return IntroductionScreen(
       pages: [
         PageViewModel(
-          title: "Welcome to SmartCart! 🛒",
-          body: "Reduce household food waste by making smarter grocery decisions aligned with your nutritional needs.",
+          title: 'Welcome to SmartCart! 🛒',
+          body:
+              'Reduce household food waste by making smarter grocery decisions aligned with your nutritional needs.',
           image: _buildImage(Icons.shopping_cart, Colors.green),
           decoration: _getPageDecoration(),
         ),
         PageViewModel(
-          title: "Scan & Track 📱",
-          body: "Use QR code scanning to quickly add products and track their expiry dates, nutrition info, and storage tips.",
+          title: 'Scan & Track 📱',
+          body:
+              'Use QR code scanning to quickly add products and track their expiry dates, nutrition info, and storage tips.',
           image: _buildImage(Icons.qr_code_scanner, Colors.blue),
           decoration: _getPageDecoration(),
         ),
         PageViewModel(
-          title: "Monitor Nutrition 🍎",
-          body: "Track your daily nutritional intake and ensure your purchases match your health goals.",
+          title: 'Monitor Nutrition 🍎',
+          body:
+              'Track your daily nutritional intake and ensure your purchases match your health goals.',
           image: _buildImage(Icons.favorite, Colors.red),
           decoration: _getPageDecoration(),
         ),
         PageViewModel(
-          title: "Reduce Waste 🌱",
-          body: "Get alerts for expiring items, avoid over-purchasing, and see your sustainability impact!",
+          title: 'Reduce Waste 🌱',
+          body:
+              'Get alerts for expiring items, avoid over-purchasing, and see your sustainability impact!',
           image: _buildImage(Icons.eco, Colors.teal),
           decoration: _getPageDecoration(),
         ),
       ],
-      onDone: () => _goToHome(context),
-      onSkip: () => _goToHome(context),
+      onDone: () => _goToLogin(context),
+      onSkip: () => _goToLogin(context),
       showSkipButton: true,
       skip: const Text('Skip', style: TextStyle(fontWeight: FontWeight.w600)),
       next: const Icon(Icons.arrow_forward),
@@ -75,9 +79,9 @@ class OnboardingScreen extends StatelessWidget {
     );
   }
 
-  void _goToHome(BuildContext context) {
+  void _goToLogin(BuildContext context) {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
   }
 }

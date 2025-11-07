@@ -35,7 +35,8 @@ class DailyNutrition extends HiveObject {
   }) : consumedProductIds = consumedProductIds ?? [];
 
   // Add nutrition from a product
-  void addNutrition(double calories, double protein, double carbs, double fat, String productId) {
+  void addNutrition(double calories, double protein, double carbs, double fat,
+      String productId) {
     totalCalories += calories;
     totalProtein += protein;
     totalCarbs += carbs;

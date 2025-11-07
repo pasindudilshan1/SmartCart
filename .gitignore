@@ -43,6 +43,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/app/google-services.json
+
+# Azure Configuration - NEVER COMMIT CREDENTIALS!
+lib/config/azure_config.dart
+
 # Hive generated files
 *.g.dart
 

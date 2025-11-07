@@ -38,7 +38,8 @@ class ProductDetailScreen extends StatelessWidget {
                     _buildNutritionSection(context),
                     const SizedBox(height: 24),
                   ],
-                  if (product.storageTips != null) _buildStorageTipsSection(context),
+                  if (product.storageTips != null)
+                    _buildStorageTipsSection(context),
                   const SizedBox(height: 24),
                   _buildQuantityControls(context),
                 ],
@@ -102,12 +103,15 @@ class ProductDetailScreen extends StatelessWidget {
             ),
             const Divider(),
             _buildInfoRow('Name', product.name),
-            _buildInfoRow('Category', product.category ?? 'Uncategorized'),
+            _buildInfoRow('Category', product.category),
             _buildInfoRow('Quantity', product.quantity.toString()),
-            _buildInfoRow('Expiry Date', product.expiryDate.toString().split(' ')[0]),
+            _buildInfoRow(
+                'Expiry Date', product.expiryDate.toString().split(' ')[0]),
             _buildInfoRow('Storage', product.storageLocation ?? 'Pantry'),
-            if (product.barcode != null) _buildInfoRow('Barcode', product.barcode!),
-            _buildInfoRow('Added On', product.dateAdded.toString().split(' ')[0]),
+            if (product.barcode != null && product.barcode!.isNotEmpty)
+              _buildInfoRow('Barcode', product.barcode!),
+            _buildInfoRow(
+                'Added On', product.dateAdded.toString().split(' ')[0]),
           ],
         ),
       ),

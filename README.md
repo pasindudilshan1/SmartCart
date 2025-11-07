@@ -145,7 +145,26 @@ Or use helper script:
 .\setup.ps1 get
 ```
 
-### Step 3: Generate Hive Adapters
+### Step 3: 🔒 Configure Azure Credentials (IMPORTANT!)
+
+**⚠️ Never commit credentials to git!**
+
+#### Copy the template:
+```powershell
+Copy-Item lib\config\azure_config.dart.template lib\config\azure_config.dart
+```
+
+#### Add your Azure access key:
+Edit `lib/config/azure_config.dart` and replace with your actual key:
+```dart
+static const String accountKey = 'YOUR_ACTUAL_AZURE_KEY_HERE';
+```
+
+**Note:** This file is in `.gitignore` and won't be committed!
+
+📚 **For complete security setup, see:** `SETUP_CREDENTIALS.md`
+
+### Step 4: Generate Hive Adapters
 ```powershell
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
@@ -157,7 +176,7 @@ Or use helper script:
 
 **Important:** Without Hive adapters, the app will crash!
 
-### Step 4: Enable Windows Developer Mode (for Windows testing)
+### Step 5: Enable Windows Developer Mode (for Windows testing)
 
 1. Press **Windows + I** to open Settings
 2. Go to **Privacy & Security** → **For developers**
@@ -172,6 +191,19 @@ start ms-settings:developers
 ---
 
 ## 📱 Running the App
+
+### For Development:
+```powershell
+flutter run
+```
+
+### For Play Store Build (Secure):
+```powershell
+.\build_playstore.ps1
+```
+Your credentials are stored securely and **NOT** hardcoded!
+
+---
 
 ### Option A: Run on Windows Desktop (Fastest for Testing)
 

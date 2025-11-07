@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import 'home_screen.dart';
+import '../services/azure_auth_service.dart';
+import 'household_setup_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -34,77 +34,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    final authService = Provider.of<AuthService>(context, listen: false);
+    print('🔐 Starting signup process...');
+    print('Name: ${_nameController.text.trim()}');
+    print('Email: ${_emailController.text.trim()}');
+
+    final authService = Provider.of<AzureAuthService>(context, listen: false);
     final error = await authService.signUpWithEmail(
       _emailController.text.trim(),
       _passwordController.text,
       _nameController.text.trim(),
     );
 
-    setState(() => _isLoading = false);
+    print('Signup result - Error: $error');
 
     if (error == null) {
+      print('✅ Sign up successful, navigating to household setup...');
       if (mounted) {
+        // Always navigate to household setup after signup
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const HouseholdSetupScreen()),
         );
+        print('✅ Navigation to household setup initiated');
+      } else {
+        print('❌ Widget not mounted, cannot navigate');
       }
     } else {
+      print('❌ Signup failed: $error');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _signUpWithGoogle() async {
-    setState(() => _isLoading = true);
-
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final error = await authService.signInWithGoogle();
-
-    setState(() => _isLoading = false);
-
-    if (error == null) {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Google Sign-In not configured. Please use "Continue as Guest" or email sign-up.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _continueAsGuest() async {
-    setState(() => _isLoading = true);
-
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final error = await authService.signInAnonymously();
-
-    setState(() => _isLoading = false);
-
-    if (error == null) {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    } else {
-      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
@@ -268,44 +225,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Sign Up'),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Divider
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'OR',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Google sign up button
-                  OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _signUpWithGoogle,
-                    icon: const Icon(Icons.login),
-                    label: const Text('Sign up with Google'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Continue as Guest button
-                  OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _continueAsGuest,
-                    icon: const Icon(Icons.person_outline),
-                    label: const Text('Continue as Guest'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
                   ),
                   const SizedBox(height: 16),
 

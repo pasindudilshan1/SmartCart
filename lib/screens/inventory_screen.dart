@@ -67,7 +67,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ProductDetailScreen(product: product),
+                              builder: (_) =>
+                                  ProductDetailScreen(product: product),
                             ),
                           );
                         },
@@ -188,7 +189,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     // Apply location filter
     if (_selectedLocation != 'All') {
       products = products
-          .where((p) => p.storageLocation?.toLowerCase() == _selectedLocation.toLowerCase())
+          .where((p) =>
+              p.storageLocation?.toLowerCase() ==
+              _selectedLocation.toLowerCase())
           .toList();
     }
 

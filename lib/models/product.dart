@@ -81,7 +81,7 @@ class Product extends HiveObject {
   bool get isExpired => expiryDate != null && daysUntilExpiry < 0;
 
   // Check if expiring soon (within 3 days)
-  bool get isExpiringSoon => 
+  bool get isExpiringSoon =>
       expiryDate != null && daysUntilExpiry >= 0 && daysUntilExpiry <= 3;
 
   // Check if low stock (quantity <= 2)

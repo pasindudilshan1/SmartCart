@@ -42,7 +42,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
               if (lowStockProducts.isEmpty)
                 _buildEmptySection('All items are well stocked! 🎉')
               else
-                ...lowStockProducts.map((product) => _buildProductTile(product, inventoryProvider)),
+                ...lowStockProducts.map(
+                    (product) => _buildProductTile(product, inventoryProvider)),
               const SizedBox(height: 24),
               _buildSectionHeader('Manual Additions', _manualItems.length),
               if (_manualItems.isEmpty)
@@ -151,19 +152,20 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
           ),
         ),
         title: Text(product.name),
-        subtitle: Text('Current stock: ${product.quantity} | ${product.storageLocation ?? 'pantry'}'),
+        subtitle: Text(
+            'Current stock: ${product.quantity} | ${product.storageLocation ?? 'pantry'}'),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: const Icon(Icons.add_circle_outline, color: Colors.green),
               onPressed: () async {
-                await provider.updateProductQuantity(product.id, product.quantity + 1);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${product.name} stock updated')),
-                  );
-                }
+                await provider.updateProductQuantity(
+                    product.id, product.quantity + 1);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${product.name} stock updated')),
+                );
               },
             ),
             const Icon(Icons.chevron_right),
@@ -320,7 +322,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   void _exportList() {
     final inventoryProvider = context.read<InventoryProvider>();
     final lowStockProducts = inventoryProvider.getLowStockProducts();
-    
+
     final allItems = [
       ...lowStockProducts.map((p) => p.name),
       ..._manualItems,

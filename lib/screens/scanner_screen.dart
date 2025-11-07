@@ -9,7 +9,6 @@ import 'package:uuid/uuid.dart';
 import '../providers/inventory_provider.dart';
 import '../models/product.dart';
 import '../services/barcode_service.dart';
-import 'dart:convert';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -178,7 +177,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         // Product found in database
         final info = productData['product'] as Map<String, dynamic>;
         final nutrition = productData['nutrition'] as Map<String, dynamic>?;
-        
+
         final product = Product(
           id: _uuid.v4(),
           name: info['name'] ?? 'Unknown Product',
@@ -189,7 +188,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
           quantity: 1,
           unit: info['unit'] ?? 'pcs',
           purchaseDate: DateTime.now(),
-          expiryDate: DateTime.now().add(const Duration(days: 7)), // Default 7 days
+          expiryDate:
+              DateTime.now().add(const Duration(days: 7)), // Default 7 days
         );
 
         _showProductDialog(product, nutrition: nutrition);
@@ -256,7 +256,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             if (product.brand != null)
                               Text(
                                 product.brand!,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
                                       color: Colors.grey[600],
                                     ),
                               ),
@@ -307,11 +310,14 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         if (nutrition['calories'] != null)
                           Chip(label: Text('${nutrition['calories']} kcal')),
                         if (nutrition['protein'] != null)
-                          Chip(label: Text('Protein: ${nutrition['protein']}g')),
+                          Chip(
+                              label: Text('Protein: ${nutrition['protein']}g')),
                         if (nutrition['fat'] != null)
                           Chip(label: Text('Fat: ${nutrition['fat']}g')),
                         if (nutrition['carbohydrates'] != null)
-                          Chip(label: Text('Carbs: ${nutrition['carbohydrates']}g')),
+                          Chip(
+                              label: Text(
+                                  'Carbs: ${nutrition['carbohydrates']}g')),
                       ],
                     ),
                   ],
@@ -333,18 +339,24 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             category: product.category,
                             brand: product.brand,
                             imageUrl: product.imageUrl,
-                            quantity: double.tryParse(quantityController.text) ?? 1.0,
+                            quantity:
+                                double.tryParse(quantityController.text) ?? 1.0,
                             unit: product.unit,
                             purchaseDate: DateTime.now(),
                             expiryDate: selectedDate,
                           );
-                          
-                          await context.read<InventoryProvider>().addProduct(updatedProduct);
+
+                          await context
+                              .read<InventoryProvider>()
+                              .addProduct(updatedProduct);
                           if (context.mounted) {
                             Navigator.pop(context);
-                            Navigator.pop(context); // Go back to previous screen
+                            Navigator.pop(
+                                context); // Go back to previous screen
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('${product.name} added to inventory')),
+                              SnackBar(
+                                  content: Text(
+                                      '${product.name} added to inventory')),
                             );
                           }
                         },
@@ -441,12 +453,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     category: 'Other',
                     purchaseDate: DateTime.now(),
                   );
-                  
+
                   context.read<InventoryProvider>().addProduct(product);
                   Navigator.pop(context);
                   Navigator.pop(context); // Go back to previous screen
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${product.name} added to inventory')),
+                    SnackBar(
+                        content: Text('${product.name} added to inventory')),
                   );
                 }
               },
