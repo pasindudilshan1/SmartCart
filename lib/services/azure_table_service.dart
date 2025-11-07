@@ -32,23 +32,23 @@ class AzureTableService {
   }
 
   // Generate Shared Key Signature for Azure Table Storage authentication
-  String _generateSharedKeySignature(String method, String resource, String date,
-      {String? contentType}) {
-    final canonicalizedResource = '/$_accountName$resource';
+  String _generateSharedKeySignature(
+    String date,
+    String canonicalizedResource,
+  ) {
+    // SharedKeyLite string to sign for Table Storage:
+    // stringToSign = Date + "\n" + CanonicalizedResource
+    // For SharedKeyLite, query parameters are NOT included in the signature
+    final stringToSign = '$date\n$canonicalizedResource';
 
-    // For requests with content, include Content-Type in signature
-    String stringToSign;
-    if (contentType != null && contentType.isNotEmpty) {
-      stringToSign = '$method\n\n$contentType\n$date\n$canonicalizedResource';
-    } else {
-      stringToSign = '$method\n\n\n$date\n$canonicalizedResource';
-    }
+    print('🔐 String to sign (SharedKeyLite): $stringToSign');
 
     final key = base64.decode(_accountKey);
     final hmac = Hmac(sha256, key);
     final signature = base64.encode(hmac.convert(utf8.encode(stringToSign)).bytes);
 
-    return 'SharedKey $_accountName:$signature';
+    // Use SharedKeyLite scheme
+    return 'SharedKeyLite $_accountName:$signature';
   }
 
   // Get current timestamp in Azure format
@@ -59,10 +59,28 @@ class AzureTableService {
   }
 
   // Generic method to execute Azure Table operations
-  Future<Response> _executeTableOperation(String method, String table, String resource,
-      {Map<String, dynamic>? data}) async {
+  Future<Response> _executeTableOperation(
+    String method,
+    String table,
+    String resource, {
+    Map<String, dynamic>? data,
+    Map<String, String>? queryParams,
+  }) async {
     final date = _getAzureTimestamp();
-    final fullResource = '/$table$resource';
+
+    // Build the full resource path
+    String fullUrl = '/$table$resource';
+
+    // For SharedKeyLite signature: canonicalized resource is /{accountName}/{table}{resource}
+    // Query parameters are NOT included in SharedKeyLite signature
+    String signatureResource = '/$_accountName/$table$resource';
+
+    // Add query parameters to the URL (for the actual HTTP request only)
+    if (queryParams != null && queryParams.isNotEmpty) {
+      // Use Uri to properly encode the query string
+      final encoded = Uri(queryParameters: queryParams).query;
+      fullUrl += '?$encoded';
+    }
 
     // For MERGE operations, we'll use PUT instead (simpler and more reliable)
     final actualMethod = (method == 'MERGE') ? 'PUT' : method;
@@ -71,14 +89,19 @@ class AzureTableService {
     final contentType =
         (actualMethod == 'POST' || actualMethod == 'PUT') ? 'application/json' : null;
 
-    final signature =
-        _generateSharedKeySignature(actualMethod, fullResource, date, contentType: contentType);
+    final signature = _generateSharedKeySignature(date, signatureResource);
+
+    print('🔗 Request URL: $_tableEndpoint$fullUrl');
+    print('🔐 Signing resource: $signatureResource');
+    print('🔐 Authorization: $signature');
 
     final headers = {
       'x-ms-date': date,
-      'x-ms-version': '2019-02-02',
+      'x-ms-version': '2020-08-04',
       'Authorization': signature,
       'Accept': 'application/json;odata=nometadata',
+      'DataServiceVersion': '3.0',
+      'MaxDataServiceVersion': '3.0;NetFx',
     };
 
     // Add Content-Type for requests with data
@@ -96,19 +119,17 @@ class AzureTableService {
       headers['If-Match'] = '*';
     }
 
-    final options = Options(
-      headers: headers,
-    );
+    final options = Options(headers: headers);
 
     try {
       if (actualMethod == 'GET') {
-        return await _dio.get(fullResource, options: options);
+        return await _dio.get(fullUrl, options: options);
       } else if (actualMethod == 'POST') {
-        return await _dio.post(fullResource, data: data, options: options);
+        return await _dio.post(fullUrl, data: data, options: options);
       } else if (actualMethod == 'PUT') {
-        return await _dio.put(fullResource, data: data, options: options);
+        return await _dio.put(fullUrl, data: data, options: options);
       } else if (actualMethod == 'DELETE') {
-        return await _dio.delete(fullResource, options: options);
+        return await _dio.delete(fullUrl, options: options);
       }
       throw Exception('Unsupported HTTP method: $actualMethod');
     } catch (e) {
@@ -127,10 +148,17 @@ class AzureTableService {
     String? photoUrl,
     String? provider, // 'email' or 'google'
   }) async {
+    print('📝 Storing user profile in Azure...');
+    print('   UserId: $userId');
+    print('   Email: $email');
+    print('   DisplayName: $displayName');
+    print('   Provider: ${provider ?? 'email'}');
+    print('   PasswordHash length: ${passwordHash?.length ?? 0}');
+
     final entity = {
       'PartitionKey': 'user',
       'RowKey': userId,
-      'Email': email,
+      'Email': email.trim().toLowerCase(),
       'DisplayName': displayName,
       'PasswordHash': passwordHash ?? '',
       'PhotoUrl': photoUrl ?? '',
@@ -139,12 +167,17 @@ class AzureTableService {
       'LastLoginAt': DateTime.now().toIso8601String(),
     };
 
-    await _executeTableOperation(
-      'POST',
-      _usersTable,
-      '',
-      data: entity,
-    );
+    try {
+      await _executeTableOperation('POST', _usersTable, '', data: entity);
+      print('✅ User profile stored successfully in AppUsers table');
+    } catch (e) {
+      print('❌ Error storing user profile: $e');
+      if (e is DioException) {
+        print('❌ Status Code: ${e.response?.statusCode}');
+        print('❌ Response: ${e.response?.data}');
+      }
+      rethrow;
+    }
   }
 
   /// Update user last login time
@@ -163,16 +196,79 @@ class AzureTableService {
     );
   }
 
-  /// Get user profile from Azure Table
+  /// Get user profile from Azure Table by email
+  Future<Map<String, dynamic>?> getUserProfileByEmail(String email) async {
+    try {
+      final normalizedEmail = email.trim().toLowerCase();
+      print('🔍 Looking up user profile for email: $email (normalized: $normalizedEmail)');
+      print('🔍 Table: $_usersTable, PartitionKey: user, Email: $normalizedEmail');
+
+      // Query for user with matching email
+      final response = await _executeTableOperation(
+        'GET',
+        _usersTable,
+        '()', // Use () for table queries with filters
+        queryParams: {
+          '\$filter': "PartitionKey eq 'user' and Email eq '$normalizedEmail'",
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final values = data['value'] as List;
+
+      if (values.isEmpty) {
+        print('❌ No user found with email: $email');
+        return null;
+      }
+
+      if (values.length > 1) {
+        print('⚠️ Multiple users found with email: $email, using first one');
+      }
+
+      print('✅ User profile found: ${values[0]}');
+      return values[0] as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ Error getting user profile by email: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      if (e is DioException) {
+        print('❌ DioException: ${e.response?.statusCode} ${e.response?.data}');
+        print(
+            '❌ Request options: ${e.requestOptions.method} ${e.requestOptions.baseUrl}${e.requestOptions.path}');
+        if (e.requestOptions.queryParameters.isNotEmpty) {
+          print('❌ Query params: ${e.requestOptions.queryParameters}');
+        }
+      } else {
+        print('❌ Error: $e');
+      }
+      return null;
+    }
+  }
+
+  /// Get user profile from Azure Table by userId (for backward compatibility)
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
     try {
+      print('🔍 Looking up user profile for userId: $userId');
+      print('🔍 Table: $_usersTable, PartitionKey: user, RowKey: $userId');
+
+      // Try direct entity path (most reliable for Azure Tables)
       final response = await _executeTableOperation(
         'GET',
         _usersTable,
         "(PartitionKey='user',RowKey='$userId')",
       );
+
+      print('✅ User profile found: ${response.data}');
       return response.data as Map<String, dynamic>;
     } catch (e) {
+      print('❌ Error getting user profile: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      if (e is DioException) {
+        print('❌ DioException: ${e.response?.statusCode} ${e.response?.data}');
+        print(
+            '❌ Request options: ${e.requestOptions.method} ${e.requestOptions.baseUrl}${e.requestOptions.path}');
+      } else {
+        print('❌ Error: $e');
+      }
       return null;
     }
   }
@@ -198,12 +294,7 @@ class AzureTableService {
       'DateAdded': product.dateAdded?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
 
-    await _executeTableOperation(
-      'POST',
-      _productsTable,
-      '',
-      data: entity,
-    );
+    await _executeTableOperation('POST', _productsTable, '', data: entity);
   }
 
   /// Update product in Azure Table
@@ -268,12 +359,7 @@ class AzureTableService {
       'ConsumedProducts': jsonEncode(nutrition.consumedProductIds),
     };
 
-    await _executeTableOperation(
-      'POST',
-      _nutritionTable,
-      '',
-      data: entity,
-    );
+    await _executeTableOperation('POST', _nutritionTable, '', data: entity);
   }
 
   /// Update nutrition data
@@ -329,12 +415,7 @@ class AzureTableService {
       'UpdatedAt': DateTime.now().toIso8601String(),
     };
 
-    await _executeTableOperation(
-      'POST',
-      _settingsTable,
-      '',
-      data: entity,
-    );
+    await _executeTableOperation('POST', _settingsTable, '', data: entity);
   }
 
   /// Update user settings
@@ -382,12 +463,7 @@ class AzureTableService {
       'CreatedAt': DateTime.now().toIso8601String(),
     };
 
-    await _executeTableOperation(
-      'POST',
-      _shoppingListTable,
-      '',
-      data: entity,
-    );
+    await _executeTableOperation('POST', _shoppingListTable, '', data: entity);
   }
 
   /// Get shopping list for user
@@ -419,8 +495,12 @@ class AzureTableService {
   // ============ HOUSEHOLD MEMBER OPERATIONS ============
 
   /// Store household member in Households Table
-  Future<void> storeHouseholdMember(String userId, int memberIndex, double averageCalories,
-      {String? name}) async {
+  Future<void> storeHouseholdMember(
+    String userId,
+    int memberIndex,
+    double averageCalories, {
+    String? name,
+  }) async {
     final memberId = 'member_$memberIndex';
 
     final entity = {
@@ -457,8 +537,11 @@ class AzureTableService {
   }
 
   /// Store multiple household members (batch)
-  Future<void> storeHouseholdMembers(String userId, List<double> averageCalories,
-      {List<String>? names}) async {
+  Future<void> storeHouseholdMembers(
+    String userId,
+    List<double> averageCalories, {
+    List<String>? names,
+  }) async {
     // Note: Azure Table Storage REST API doesn't support true batch operations easily
     // We'll store them one by one
     for (int i = 0; i < averageCalories.length; i++) {
@@ -490,8 +573,12 @@ class AzureTableService {
   }
 
   /// Update household member
-  Future<void> updateHouseholdMember(String userId, int memberIndex, double averageCalories,
-      {String? name}) async {
+  Future<void> updateHouseholdMember(
+    String userId,
+    int memberIndex,
+    double averageCalories, {
+    String? name,
+  }) async {
     final memberId = 'member_$memberIndex';
 
     final entity = {
@@ -619,18 +706,10 @@ class AzureTableService {
       // Get all household members
       final members = await getHouseholdMembers(userId);
 
-      return {
-        'profile': profile,
-        'members': members,
-        'hasMemberData': members.isNotEmpty,
-      };
+      return {'profile': profile, 'members': members, 'hasMemberData': members.isNotEmpty};
     } catch (e) {
       print('❌ Error fetching household data: $e');
-      return {
-        'profile': null,
-        'members': <Map<String, dynamic>>[],
-        'hasData': false,
-      };
+      return {'profile': null, 'members': <Map<String, dynamic>>[], 'hasData': false};
     }
   }
 
@@ -638,11 +717,7 @@ class AzureTableService {
   Future<void> deleteUserData(String userId) async {
     try {
       // Delete user profile from Users table
-      await _executeTableOperation(
-        'DELETE',
-        _usersTable,
-        "(PartitionKey='user',RowKey='$userId')",
-      );
+      await _executeTableOperation('DELETE', _usersTable, "(PartitionKey='user',RowKey='$userId')");
 
       // Delete household profile from Households table
       try {

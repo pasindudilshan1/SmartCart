@@ -34,14 +34,25 @@ class AzureAuthService extends ChangeNotifier {
   /// Sign up with email and password
   Future<String?> signUpWithEmail(String email, String password, String name) async {
     try {
+      print('📝 ========== SIGN UP ATTEMPT ==========');
+      print('📧 Email: $email');
+      print('👤 Name: $name');
+
       final userId = _generateUserId(email);
+      print('🔑 Generated userId: $userId');
+
       final passwordHash = _hashPassword(password);
+      print('🔒 Password hash: ${passwordHash.substring(0, 20)}...');
 
       // Check if user already exists
-      final existingUser = await _azureService.getUserProfile(userId);
+      print('🔍 Checking if user already exists...');
+      final existingUser = await _azureService.getUserProfileByEmail(email.toLowerCase().trim());
       if (existingUser != null) {
+        print('❌ User already exists');
         return 'An account already exists for that email.';
       }
+
+      print('✅ User does not exist, creating new account...');
 
       // Store user profile in Azure Table
       await _azureService.storeUserProfile(
@@ -52,6 +63,8 @@ class AzureAuthService extends ChangeNotifier {
         provider: 'email',
       );
 
+      print('✅ User profile stored successfully');
+
       // Set current user
       _currentUserId = userId;
       _currentUserEmail = email.toLowerCase().trim();
@@ -60,10 +73,12 @@ class AzureAuthService extends ChangeNotifier {
       // Save to local storage
       await _localStorageService.saveCurrentUser(userId, email, name);
 
+      print('✅ ========== SIGN UP SUCCESSFUL ==========');
       notifyListeners();
       return null; // Success
     } catch (e) {
       print('❌ Sign up error: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
       return 'An error occurred during sign up: $e';
     }
   }
@@ -71,24 +86,52 @@ class AzureAuthService extends ChangeNotifier {
   /// Sign in with email and password
   Future<String?> signInWithEmail(String email, String password) async {
     try {
-      final userId = _generateUserId(email);
-      final passwordHash = _hashPassword(password);
+      print('🔐 ========== SIGN IN ATTEMPT ==========');
+      print('📧 Email: $email');
 
-      // Get user profile from Azure
-      final userProfile = await _azureService.getUserProfile(userId);
+      final passwordHash = _hashPassword(password);
+      print('🔒 Password hash: ${passwordHash.substring(0, 20)}...');
+
+      // Get user profile from Azure by email
+      print('🔍 Querying AppUsers table by email...');
+      final userProfile = await _azureService.getUserProfileByEmail(email.toLowerCase().trim());
 
       if (userProfile == null) {
+        print('❌ User not found in AppUsers table');
         return 'NO_USER_FOUND'; // Special code to show "Please sign up" message
       }
 
+      print('✅ User found in AppUsers table');
+      print('📋 User data: Email=${userProfile['Email']}, Name=${userProfile['DisplayName']}');
+
       // Verify password
       final storedPasswordHash = userProfile['PasswordHash'] as String?;
+      print('🔒 Stored password hash: ${storedPasswordHash?.substring(0, 20) ?? 'NULL'}...');
+
+      if (storedPasswordHash == null || storedPasswordHash.isEmpty) {
+        print('❌ No password hash stored for this user');
+        return 'Account setup incomplete. Please contact support.';
+      }
+
       if (storedPasswordHash != passwordHash) {
+        print('❌ Password hash mismatch');
+        print('   Expected: ${passwordHash.substring(0, 20)}...');
+        print('   Got:      ${storedPasswordHash.substring(0, 20)}...');
         return 'Incorrect password.';
       }
 
-      // Update last login in Azure Table
-      await _azureService.updateUserLastLogin(userId);
+      print('✅ Password verified successfully');
+
+      // Get userId from the profile (it should be stored in the RowKey)
+      final userId = userProfile['RowKey'] as String?;
+      if (userId == null) {
+        print('❌ No userId found in user profile');
+        return 'Account data corrupted. Please contact support.';
+      }
+
+      // Note: Not updating LastLoginAt to avoid modifying user data during sign-in
+      // Only reading data as requested
+      print('ℹ️ Skipping LastLoginAt update - read-only sign-in');
 
       // Set current user
       _currentUserId = userId;
@@ -106,16 +149,14 @@ class AzureAuthService extends ChangeNotifier {
       }
 
       // Save to local storage
-      await _localStorageService.saveCurrentUser(
-        userId,
-        _currentUserEmail!,
-        _currentUserName!,
-      );
+      await _localStorageService.saveCurrentUser(userId, _currentUserEmail!, _currentUserName!);
 
+      print('✅ ========== SIGN IN SUCCESSFUL ==========');
       notifyListeners();
       return null; // Success
     } catch (e) {
       print('❌ Sign in error: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
       return 'An error occurred during sign in: $e';
     }
   }
