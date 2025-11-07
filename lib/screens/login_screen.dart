@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/azure_auth_service.dart';
-import '../services/local_storage_service.dart';
-import '../services/azure_table_service.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
-import 'household_setup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,8 +15,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final LocalStorageService _localStorageService = LocalStorageService();
-  final AzureTableService _azureTableService = AzureTableService();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -41,31 +36,13 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('No user found after authentication');
       }
 
-      print('🔍 Checking if household setup is complete...');
+      print('✅ Sign in successful, navigating to home screen...');
 
-      // Check local storage first
-      final isSetupComplete = await _localStorageService.isHouseholdSetupComplete(userId);
-
-      if (isSetupComplete) {
-        print('✅ Household setup complete, loading data...');
-
-        // Try to fetch latest data from Azure in background
-        _fetchHouseholdDataInBackground(userId);
-
-        // Navigate to home screen
-        if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      } else {
-        print('⚠️  Household setup not complete, navigating to setup...');
-
-        // Navigate to household setup
-        if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HouseholdSetupScreen()),
-        );
-      }
+      // Navigate directly to home screen - household setup was done during sign-up
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
     } catch (e) {
       print('❌ Error navigating after authentication: $e');
       if (!mounted) return;
@@ -76,36 +53,6 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: Colors.red,
         ),
       );
-    }
-  }
-
-  /// Fetch household data from Azure in background and update local storage
-  Future<void> _fetchHouseholdDataInBackground(String userId) async {
-    try {
-      print('🔄 Fetching household data from Azure...');
-
-      // Check if we need to sync
-      final needsSync = await _localStorageService.needsSync();
-      if (!needsSync) {
-        print('⏭️  Data is fresh, skipping sync');
-        return;
-      }
-
-      // Fetch household members from Azure
-      final azureMembers = await _azureTableService.getHouseholdMembers(userId);
-
-      if (azureMembers.isEmpty) {
-        print('⚠️  No household members found in Azure');
-        return;
-      }
-
-      // Data exists in Azure, mark sync time
-      await _localStorageService.updateLastSyncTime();
-
-      print('✅ Successfully verified ${azureMembers.length} household members in Azure');
-    } catch (e) {
-      print('❌ Error fetching household data from Azure: $e');
-      // Don't throw - we can still proceed
     }
   }
 

@@ -138,17 +138,7 @@ class AzureAuthService extends ChangeNotifier {
       _currentUserEmail = userProfile['Email'] as String;
       _currentUserName = userProfile['DisplayName'] as String;
 
-      // Fetch household data from Households table
-      print('📦 Fetching household data for user...');
-      final householdData = await _azureService.getCompleteHouseholdData(userId);
-
-      // Check if household data exists and mark setup complete
-      if (householdData['members'] != null && (householdData['members'] as List).isNotEmpty) {
-        print('✅ Found household data from Azure');
-        await _localStorageService.markHouseholdSetupComplete(userId);
-      }
-
-      // Save to local storage
+      // Save to local storage - sign-in complete, user goes directly to home/inventory
       await _localStorageService.saveCurrentUser(userId, _currentUserEmail!, _currentUserName!);
 
       print('✅ ========== SIGN IN SUCCESSFUL ==========');
