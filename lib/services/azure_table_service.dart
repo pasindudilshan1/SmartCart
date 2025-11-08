@@ -551,6 +551,26 @@ class AzureTableService {
     }
   }
 
+  /// Get all shopping list items (for manual shopping mode)
+  Future<List<Map<String, dynamic>>> getAllShoppingListItems() async {
+    try {
+      print('📋 Fetching all shopping list items from table: $_shoppingListTable');
+      final response = await _executeTableOperation(
+        'GET',
+        _shoppingListTable,
+        '()',
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final values = data['value'] as List;
+      print('✅ Found ${values.length} shopping list items');
+      return values.cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('❌ Error fetching shopping list items: $e');
+      return [];
+    }
+  }
+
   /// Delete shopping list item
   Future<void> deleteShoppingListItem(String userId, String itemId) async {
     await _executeTableOperation(

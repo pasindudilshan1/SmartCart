@@ -40,6 +40,12 @@ class LocalStorageService {
     return null;
   }
 
+  /// Get current user ID only
+  static Future<String?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_currentUserIdKey);
+  }
+
   /// Check if household setup is complete for current user
   Future<bool> isHouseholdSetupComplete(String userId) async {
     final prefs = await SharedPreferences.getInstance();

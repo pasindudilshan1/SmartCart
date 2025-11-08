@@ -7,7 +7,6 @@ import 'package:uuid/uuid.dart';
 import '../providers/inventory_provider.dart';
 import '../models/product.dart';
 import 'product_detail_screen.dart';
-import '../widgets/product_card.dart';
 import 'initial_inventory_setup_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -20,6 +19,8 @@ class InventoryScreen extends StatefulWidget {
 class _InventoryScreenState extends State<InventoryScreen> {
   String _selectedFilter = 'All';
   String _selectedLocation = 'All';
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -32,21 +33,35 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final hintColor = isDark ? Colors.white70 : Colors.black54;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inventory'),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  hintText: 'Search by name, brand, category...',
+                  hintStyle: TextStyle(color: hintColor),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => setState(() {}), // Rebuild on search
+              )
+            : const Text('Inventory'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.eco),
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
-              // Navigate to sustainability insights
-              Navigator.pushNamed(context, '/sustainability');
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              // Navigate to settings
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                }
+              });
             },
           ),
         ],
@@ -68,25 +83,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     // Sync with Azure to get latest products
                     await inventoryProvider.syncFromCloud();
                   },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(8.0),
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-                      return ProductCard(
-                        product: product,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ProductDetailScreen(product: product),
-                            ),
-                          );
-                        },
-                        onDelete: () => _deleteProduct(context, product),
-                      );
-                    },
-                  ),
+                  child: _buildCategoryGroupedList(products),
                 );
               },
             ),
@@ -446,7 +443,199 @@ class _InventoryScreenState extends State<InventoryScreen> {
           .toList();
     }
 
+    // Apply search filter
+    if (_searchController.text.isNotEmpty) {
+      final query = _searchController.text.toLowerCase().trim();
+      products = products.where((p) {
+        final name = p.name.toLowerCase();
+        final brand = (p.brand ?? '').toLowerCase();
+        final category = p.category.toLowerCase();
+        final barcode = (p.barcode ?? '').toLowerCase();
+        return name.contains(query) ||
+            brand.contains(query) ||
+            category.contains(query) ||
+            barcode.contains(query);
+      }).toList();
+    }
+
     return products;
+  }
+
+  Widget _buildCategoryGroupedList(List<Product> products) {
+    // Group products by category
+    final Map<String, List<Product>> groupedProducts = {};
+    for (final product in products) {
+      final category = product.category;
+      if (!groupedProducts.containsKey(category)) {
+        groupedProducts[category] = [];
+      }
+      groupedProducts[category]!.add(product);
+    }
+
+    // Sort products within each category by expiry date (closest first), then by purchase date
+    groupedProducts.forEach((category, productList) {
+      productList.sort((a, b) {
+        // First, sort by expiry date (items expiring soon come first)
+        if (a.expiryDate != null && b.expiryDate != null) {
+          final expiryCompare = a.expiryDate!.compareTo(b.expiryDate!);
+          if (expiryCompare != 0) return expiryCompare;
+        } else if (a.expiryDate != null) {
+          return -1; // a has expiry date, b doesn't - a comes first
+        } else if (b.expiryDate != null) {
+          return 1; // b has expiry date, a doesn't - b comes first
+        }
+
+        // If expiry dates are equal or both null, sort by purchase date (newest first)
+        if (a.purchaseDate != null && b.purchaseDate != null) {
+          return b.purchaseDate!.compareTo(a.purchaseDate!);
+        } else if (a.purchaseDate != null) {
+          return -1;
+        } else if (b.purchaseDate != null) {
+          return 1;
+        }
+
+        return 0;
+      });
+    });
+
+    // Sort categories alphabetically
+    final sortedCategories = groupedProducts.keys.toList()..sort();
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(8.0),
+      itemCount: sortedCategories.length,
+      itemBuilder: (context, index) {
+        final category = sortedCategories[index];
+        final categoryProducts = groupedProducts[category]!;
+
+        return _buildCategorySection(category, categoryProducts);
+      },
+    );
+  }
+
+  Widget _buildCategorySection(String category, List<Product> products) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: _getCategoryColor(category),
+          child: Text(
+            products.length.toString(),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+        title: Text(
+          category,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text('${products.length} item${products.length != 1 ? 's' : ''}'),
+        children: products.map((product) {
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundColor: product.isExpired
+                  ? Colors.red
+                  : product.isExpiringSoon
+                      ? Colors.orange
+                      : Colors.green,
+              child: Icon(
+                product.isExpired
+                    ? Icons.warning
+                    : product.isExpiringSoon
+                        ? Icons.schedule
+                        : Icons.check,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            title: Text(product.name),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Qty: ${product.quantity} ${product.unit}'),
+                if (product.expiryDate != null)
+                  Text(
+                    'Expires: ${_formatDate(product.expiryDate!)} (${product.daysUntilExpiry} days)',
+                    style: TextStyle(
+                      color: product.isExpired
+                          ? Colors.red
+                          : product.isExpiringSoon
+                              ? Colors.orange
+                              : Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                if (product.purchaseDate != null)
+                  Text(
+                    'Purchased: ${_formatDate(product.purchaseDate!)}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProductDetailScreen(product: product),
+                      ),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _deleteProduct(context, product),
+                ),
+              ],
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProductDetailScreen(product: product),
+                ),
+              );
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'dairy':
+        return Colors.blue;
+      case 'meat':
+        return Colors.red;
+      case 'fruits':
+        return Colors.orange;
+      case 'vegetables':
+        return Colors.green;
+      case 'bakery':
+        return Colors.brown;
+      case 'grains':
+        return Colors.amber;
+      case 'beverages':
+        return Colors.cyan;
+      case 'snacks':
+        return Colors.purple;
+      case 'frozen foods':
+        return Colors.lightBlue;
+      case 'condiments':
+        return Colors.deepOrange;
+      case 'nuts':
+        return Colors.deepPurple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   Widget _buildEmptyState() {
@@ -524,5 +713,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
         );
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }
