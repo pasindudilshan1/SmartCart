@@ -35,8 +35,7 @@ class DailyNutrition extends HiveObject {
   }) : consumedProductIds = consumedProductIds ?? [];
 
   // Add nutrition from a product
-  void addNutrition(double calories, double protein, double carbs, double fat,
-      String productId) {
+  void addNutrition(double calories, double protein, double carbs, double fat, String productId) {
     totalCalories += calories;
     totalProtein += protein;
     totalCarbs += carbs;
@@ -62,6 +61,9 @@ class NutritionGoals extends HiveObject {
   double dailyFatGoal;
 
   @HiveField(4)
+  double dailyFiberGoal;
+
+  @HiveField(5)
   String userProfile; // active, sedentary, athlete
 
   NutritionGoals({
@@ -69,6 +71,7 @@ class NutritionGoals extends HiveObject {
     this.dailyProteinGoal = 50.0,
     this.dailyCarbsGoal = 300.0,
     this.dailyFatGoal = 70.0,
+    this.dailyFiberGoal = 25.0,
     this.userProfile = 'active',
   });
 
@@ -92,5 +95,9 @@ class NutritionGoals extends HiveObject {
 
   double getFatProgress(double currentFat) {
     return (currentFat / dailyFatGoal * 100).clamp(0.0, 100.0);
+  }
+
+  double getFiberProgress(double currentFiber) {
+    return (currentFiber / dailyFiberGoal * 100).clamp(0.0, 100.0);
   }
 }

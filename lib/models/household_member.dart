@@ -11,21 +11,41 @@ class HouseholdMember extends HiveObject {
   int memberIndex; // 1, 2, 3, etc.
 
   @HiveField(2)
-  double averageDailyCalories;
+  String ageGroup; // 'infant', 'child', 'teen', 'adult', 'senior'
 
   @HiveField(3)
-  String? name; // Optional member name
+  double dailyCalories;
 
   @HiveField(4)
-  DateTime createdAt;
+  double dailyProtein;
 
   @HiveField(5)
+  double dailyFat;
+
+  @HiveField(6)
+  double dailyCarbs;
+
+  @HiveField(7)
+  double dailyFiber;
+
+  @HiveField(8)
+  String? name; // Optional member name
+
+  @HiveField(9)
+  DateTime createdAt;
+
+  @HiveField(10)
   DateTime updatedAt;
 
   HouseholdMember({
     required this.id,
     required this.memberIndex,
-    required this.averageDailyCalories,
+    required this.ageGroup,
+    required this.dailyCalories,
+    required this.dailyProtein,
+    required this.dailyFat,
+    required this.dailyCarbs,
+    required this.dailyFiber,
     this.name,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -38,7 +58,12 @@ class HouseholdMember extends HiveObject {
       'PartitionKey': userId,
       'RowKey': id,
       'MemberIndex': memberIndex,
-      'AverageDailyCalories': averageDailyCalories,
+      'AgeGroup': ageGroup,
+      'DailyCalories': dailyCalories,
+      'DailyProtein': dailyProtein,
+      'DailyFat': dailyFat,
+      'DailyCarbs': dailyCarbs,
+      'DailyFiber': dailyFiber,
       'Name': name ?? '',
       'CreatedAt': createdAt.toIso8601String(),
       'UpdatedAt': updatedAt.toIso8601String(),
@@ -47,10 +72,19 @@ class HouseholdMember extends HiveObject {
 
   // Create from Azure Table Storage entity
   factory HouseholdMember.fromAzureEntity(Map<String, dynamic> entity) {
+    // Handle backward compatibility: old data has 'AverageDailyCalories', new has 'DailyCalories'
+    double calories = (entity['DailyCalories'] as num?)?.toDouble() ??
+        (entity['AverageDailyCalories'] as num?)?.toDouble() ??
+        2000.0;
     return HouseholdMember(
       id: entity['RowKey'] as String,
       memberIndex: entity['MemberIndex'] as int,
-      averageDailyCalories: (entity['AverageDailyCalories'] as num).toDouble(),
+      ageGroup: entity['AgeGroup'] as String? ?? 'adult',
+      dailyCalories: calories,
+      dailyProtein: (entity['DailyProtein'] as num?)?.toDouble() ?? 50.0,
+      dailyFat: (entity['DailyFat'] as num?)?.toDouble() ?? 70.0,
+      dailyCarbs: (entity['DailyCarbs'] as num?)?.toDouble() ?? 250.0,
+      dailyFiber: (entity['DailyFiber'] as num?)?.toDouble() ?? 25.0,
       name: entity['Name'] as String? ?? '',
       createdAt: DateTime.parse(entity['CreatedAt'] as String),
       updatedAt: DateTime.parse(entity['UpdatedAt'] as String),
@@ -61,7 +95,12 @@ class HouseholdMember extends HiveObject {
   Map<String, dynamic> toFirestore() {
     return {
       'memberIndex': memberIndex,
-      'averageDailyCalories': averageDailyCalories,
+      'ageGroup': ageGroup,
+      'dailyCalories': dailyCalories,
+      'dailyProtein': dailyProtein,
+      'dailyFat': dailyFat,
+      'dailyCarbs': dailyCarbs,
+      'dailyFiber': dailyFiber,
       'name': name,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -73,7 +112,12 @@ class HouseholdMember extends HiveObject {
     return HouseholdMember(
       id: id,
       memberIndex: data['memberIndex'] as int,
-      averageDailyCalories: (data['averageDailyCalories'] as num).toDouble(),
+      ageGroup: data['ageGroup'] as String? ?? 'adult',
+      dailyCalories: (data['dailyCalories'] as num?)?.toDouble() ?? 2000.0,
+      dailyProtein: (data['dailyProtein'] as num?)?.toDouble() ?? 50.0,
+      dailyFat: (data['dailyFat'] as num?)?.toDouble() ?? 70.0,
+      dailyCarbs: (data['dailyCarbs'] as num?)?.toDouble() ?? 250.0,
+      dailyFiber: (data['dailyFiber'] as num?)?.toDouble() ?? 25.0,
       name: data['name'] as String?,
       createdAt: DateTime.parse(data['createdAt'] as String),
       updatedAt: DateTime.parse(data['updatedAt'] as String),

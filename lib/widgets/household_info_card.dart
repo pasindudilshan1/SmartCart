@@ -103,7 +103,7 @@ class HouseholdInfoCard extends StatelessWidget {
                     const Icon(Icons.restaurant, size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      '${member.averageDailyCalories.toStringAsFixed(0)} cal/day',
+                      '${member.dailyCalories.toStringAsFixed(0)} cal/day (${member.ageGroup})',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
                           ),
@@ -119,6 +119,6 @@ class HouseholdInfoCard extends StatelessWidget {
   }
 
   double _calculateTotalCalories() {
-    return members.fold(0.0, (sum, member) => sum + member.averageDailyCalories);
+    return members.fold(0.0, (sum, member) => sum + member.dailyCalories);
   }
 }

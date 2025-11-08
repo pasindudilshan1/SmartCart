@@ -6,6 +6,7 @@ import 'inventory_screen.dart';
 import 'scanner_screen.dart';
 import 'nutrition_screen.dart';
 import 'shopping_list_screen.dart';
+import 'household_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,6 +28,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Smart Cart'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              // Navigate to settings screen
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const HouseholdManagementScreen()),
+              );
+            },
+          ),
+        ],
+      ),
       body: _screens[_currentIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

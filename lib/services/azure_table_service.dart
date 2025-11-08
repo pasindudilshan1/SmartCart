@@ -566,7 +566,12 @@ class AzureTableService {
   Future<void> storeHouseholdMember(
     String userId,
     int memberIndex,
-    double averageCalories, {
+    String ageGroup,
+    double dailyCalories,
+    double dailyProtein,
+    double dailyFat,
+    double dailyCarbs,
+    double dailyFiber, {
     String? name,
   }) async {
     final memberId = 'member_$memberIndex';
@@ -576,7 +581,12 @@ class AzureTableService {
       'RowKey': memberId,
       'UserId': userId,
       'MemberIndex': memberIndex,
-      'AverageDailyCalories': averageCalories,
+      'AgeGroup': ageGroup,
+      'DailyCalories': dailyCalories,
+      'DailyProtein': dailyProtein,
+      'DailyFat': dailyFat,
+      'DailyCarbs': dailyCarbs,
+      'DailyFiber': dailyFiber,
       'Name': name ?? '',
       'CreatedAt': DateTime.now().toIso8601String(),
       'UpdatedAt': DateTime.now().toIso8601String(),
@@ -607,16 +617,26 @@ class AzureTableService {
   /// Store multiple household members (batch)
   Future<void> storeHouseholdMembers(
     String userId,
-    List<double> averageCalories, {
+    List<String> ageGroups,
+    List<double> dailyCalories,
+    List<double> dailyProtein,
+    List<double> dailyFat,
+    List<double> dailyCarbs,
+    List<double> dailyFiber, {
     List<String>? names,
   }) async {
     // Note: Azure Table Storage REST API doesn't support true batch operations easily
     // We'll store them one by one
-    for (int i = 0; i < averageCalories.length; i++) {
+    for (int i = 0; i < dailyCalories.length; i++) {
       await storeHouseholdMember(
         userId,
         i + 1,
-        averageCalories[i],
+        ageGroups[i],
+        dailyCalories[i],
+        dailyProtein[i],
+        dailyFat[i],
+        dailyCarbs[i],
+        dailyFiber[i],
         name: names != null && i < names.length ? names[i] : null,
       );
     }
@@ -625,17 +645,24 @@ class AzureTableService {
   /// Get all household members for a user from Households table
   Future<List<Map<String, dynamic>>> getHouseholdMembers(String userId) async {
     try {
-      // Query for all entities with PartitionKey = userId and RowKey starting with 'member_'
+      // Query for all entities with PartitionKey = userId
       final response = await _executeTableOperation(
         'GET',
         _householdsTable,
-        "()?%24filter=PartitionKey%20eq%20'$userId'%20and%20startswith(RowKey,'member_')",
+        '()',
+        queryParams: {
+          '\$filter': "PartitionKey eq '$userId'",
+        },
       );
 
       final data = response.data as Map<String, dynamic>;
       final values = data['value'] as List;
-      return values.cast<Map<String, dynamic>>();
+      // Filter for members (RowKey starting with 'member_')
+      final members =
+          values.where((entity) => (entity['RowKey'] as String).startsWith('member_')).toList();
+      return members.cast<Map<String, dynamic>>();
     } catch (e) {
+      print('Error getting household members: $e');
       return [];
     }
   }
@@ -644,7 +671,12 @@ class AzureTableService {
   Future<void> updateHouseholdMember(
     String userId,
     int memberIndex,
-    double averageCalories, {
+    String ageGroup,
+    double dailyCalories,
+    double dailyProtein,
+    double dailyFat,
+    double dailyCarbs,
+    double dailyFiber, {
     String? name,
   }) async {
     final memberId = 'member_$memberIndex';
@@ -652,7 +684,12 @@ class AzureTableService {
     final entity = {
       'PartitionKey': userId,
       'RowKey': memberId,
-      'AverageDailyCalories': averageCalories,
+      'AgeGroup': ageGroup,
+      'DailyCalories': dailyCalories,
+      'DailyProtein': dailyProtein,
+      'DailyFat': dailyFat,
+      'DailyCarbs': dailyCarbs,
+      'DailyFiber': dailyFiber,
       'Name': name ?? '',
       'UpdatedAt': DateTime.now().toIso8601String(),
     };
