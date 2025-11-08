@@ -34,6 +34,9 @@ void main() async {
     if (!Hive.isAdapterRegistered(4)) {
       Hive.registerAdapter(HouseholdMemberAdapter());
     }
+    if (!Hive.isAdapterRegistered(5)) {
+      Hive.registerAdapter(NutritionInfoAdapter());
+    }
 
     // Open Hive boxes
     await Hive.openBox('products');

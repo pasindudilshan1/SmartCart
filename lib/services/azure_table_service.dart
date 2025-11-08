@@ -277,6 +277,7 @@ class AzureTableService {
 
   /// Store product in Azure Table
   Future<void> storeProduct(String userId, Product product) async {
+    print('💾 Storing product in Azure: ${product.name} for userId: $userId');
     final entity = {
       'PartitionKey': userId, // Partition by user for efficient queries
       'RowKey': product.id,
@@ -285,6 +286,7 @@ class AzureTableService {
       'Category': product.category,
       'Quantity': product.quantity,
       'Unit': product.unit,
+      'ActualWeight': product.actualWeight ?? 0.0,
       'ExpiryDate': product.expiryDate?.toIso8601String() ?? '',
       'PurchaseDate': product.purchaseDate?.toIso8601String() ?? '',
       'Brand': product.brand ?? '',
@@ -292,9 +294,19 @@ class AzureTableService {
       'ImageUrl': product.imageUrl ?? '',
       'StorageLocation': product.storageLocation ?? '',
       'DateAdded': product.dateAdded?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      // Nutrition information
+      'Calories': product.nutritionInfo?.calories ?? 0.0,
+      'Protein': product.nutritionInfo?.protein ?? 0.0,
+      'Carbs': product.nutritionInfo?.carbs ?? 0.0,
+      'Fat': product.nutritionInfo?.fat ?? 0.0,
+      'Fiber': product.nutritionInfo?.fiber ?? 0.0,
+      'Sugar': product.nutritionInfo?.sugar ?? 0.0,
+      'Sodium': product.nutritionInfo?.sodium ?? 0.0,
+      'ServingSize': product.nutritionInfo?.servingSize ?? '',
     };
 
     await _executeTableOperation('POST', _productsTable, '', data: entity);
+    print('✅ Product stored successfully: ${product.name}');
   }
 
   /// Update product in Azure Table
@@ -328,16 +340,72 @@ class AzureTableService {
   /// Get all products for a user
   Future<List<Map<String, dynamic>>> getProducts(String userId) async {
     try {
+      print('🔍 AzureTableService.getProducts called for userId: $userId');
+      print('📋 Products table: $_productsTable');
+
+      // First try to get all products to test table access
+      try {
+        final allResponse = await _executeTableOperation(
+          'GET',
+          _productsTable,
+          '()',
+        );
+        final allData = allResponse.data as Map<String, dynamic>;
+        final allValues = allData['value'] as List;
+        print('📊 Total products in table: ${allValues.length}');
+      } catch (e) {
+        print('❌ Cannot access products table: $e');
+        return [];
+      }
+
+      // Use queryParams so the canonicalized resource used for signing
+      // does NOT include the query string (required by SharedKeyLite)
       final response = await _executeTableOperation(
         'GET',
         _productsTable,
-        "()?%24filter=PartitionKey%20eq%20'$userId'",
+        '()',
+        queryParams: {
+          '\u0024filter': "PartitionKey eq '$userId'",
+        },
       );
 
       final data = response.data as Map<String, dynamic>;
       final values = data['value'] as List;
+      print('📊 Azure getProducts returned ${values.length} products for user $userId');
+      if (values.isNotEmpty) {
+        print('📦 First product sample: ${values[0]}');
+        print('🔑 PartitionKey in data: ${values[0]['PartitionKey']}');
+        print('🔍 Query userId: $userId');
+        print('✅ PartitionKey matches: ${values[0]['PartitionKey'] == userId}');
+      } else {
+        print('⚠️  No products found for user $userId');
+        // Let's also check what partition keys exist in the table
+        try {
+          final allResponse = await _executeTableOperation(
+            'GET',
+            _productsTable,
+            '()',
+          );
+          final allData = allResponse.data as Map<String, dynamic>;
+          final allValues = allData['value'] as List;
+          if (allValues.isNotEmpty) {
+            final partitionKeys = allValues.map((p) => p['PartitionKey']).toSet();
+            print('🔑 Available PartitionKeys in table: $partitionKeys');
+          }
+        } catch (e) {
+          print('❌ Could not check available partition keys: $e');
+        }
+      }
       return values.cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      print('❌ Azure getProducts DioException: ${e.message}');
+      if (e.response != null) {
+        print('❌ Response status: ${e.response?.statusCode}');
+        print('❌ Response data: ${e.response?.data}');
+      }
+      return [];
     } catch (e) {
+      print('❌ Azure getProducts error: $e');
       return [];
     }
   }

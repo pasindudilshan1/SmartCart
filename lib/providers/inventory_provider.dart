@@ -23,6 +23,7 @@ class InventoryProvider extends ChangeNotifier {
   /// Set the current user ID (call this after login)
   void setUserId(String? userId) {
     _currentUserId = userId;
+    debugPrint('🔑 InventoryProvider: setUserId called with userId: $userId');
     if (userId != null) {
       _syncWithAzure();
     }
@@ -35,34 +36,110 @@ class InventoryProvider extends ChangeNotifier {
 
   void _loadProducts() {
     _products = _productBox.values.cast<Product>().toList();
+    debugPrint('📱 Loaded ${_products.length} products from local storage');
+    if (_products.isNotEmpty) {
+      debugPrint('📦 Sample product: ${_products[0].name}');
+    }
     notifyListeners();
   }
 
   // Sync with Azure Table Storage
   Future<void> _syncWithAzure() async {
-    if (_currentUserId == null) return;
+    debugPrint('🔄 _syncWithAzure called with userId: $_currentUserId');
+    if (_currentUserId == null) {
+      debugPrint('❌ _syncWithAzure: userId is null, returning');
+      return;
+    }
 
     try {
+      // First check if we have any products locally
+      final localProducts = _productBox.values.cast<Product>().toList();
+      debugPrint('📦 Local products count: ${localProducts.length}');
+
+      if (localProducts.isEmpty) {
+        debugPrint('☁️  Local storage is empty, fetching from Azure...');
+        // Local storage is empty, fetch from Azure and store locally
+        final cloudProducts = await _azureService.getProducts(_currentUserId!);
+        debugPrint('☁️  Fetched ${cloudProducts.length} products from Azure');
+
+        _isOnline = true;
+
+        // Store cloud products locally
+        for (var cloudData in cloudProducts) {
+          final product = _parseProductFromAzure(cloudData);
+          if (product != null) {
+            await _productBox.put(product.id, product);
+            debugPrint('💾 Stored product locally: ${product.name}');
+          }
+        }
+        _loadProducts();
+        debugPrint('✅ Synced ${cloudProducts.length} products from Azure to local storage');
+      } else {
+        // Local storage has products, mark as online but don't overwrite
+        _isOnline = true;
+        debugPrint('ℹ️  Local storage has ${localProducts.length} products, skipping Azure sync');
+      }
+    } catch (e) {
+      _isOnline = false;
+      debugPrint('❌ Azure sync error: $e');
+    }
+  }
+
+  // Public method to sync from Azure Table Storage
+  Future<void> syncFromCloud() async {
+    debugPrint('🔄 syncFromCloud called with userId: $_currentUserId');
+    if (_currentUserId == null) {
+      debugPrint('❌ syncFromCloud: userId is null, returning');
+      return;
+    }
+
+    try {
+      debugPrint('☁️  Fetching products from Azure...');
       final cloudProducts = await _azureService.getProducts(_currentUserId!);
+      debugPrint('☁️  Fetched ${cloudProducts.length} products from Azure');
+
       _isOnline = true;
 
-      // Merge cloud products with local (cloud is source of truth)
+      // Clear local storage and replace with cloud data
+      await _productBox.clear();
+
+      // Store cloud products locally
       for (var cloudData in cloudProducts) {
         final product = _parseProductFromAzure(cloudData);
         if (product != null) {
           await _productBox.put(product.id, product);
+          debugPrint('💾 Stored product locally: ${product.name}');
         }
       }
       _loadProducts();
+      debugPrint('✅ Synced ${cloudProducts.length} products from Azure to local storage');
     } catch (e) {
       _isOnline = false;
-      debugPrint('Azure sync error: $e');
+      debugPrint('❌ Azure sync error: $e');
     }
   }
 
   // Parse product from Azure Table data
   Product? _parseProductFromAzure(Map<String, dynamic> data) {
     try {
+      // Parse nutrition info if available
+      NutritionInfo? nutritionInfo;
+      if ((data['Calories'] ?? 0.0) > 0 ||
+          (data['Protein'] ?? 0.0) > 0 ||
+          (data['Carbs'] ?? 0.0) > 0 ||
+          (data['Fat'] ?? 0.0) > 0) {
+        nutritionInfo = NutritionInfo(
+          calories: (data['Calories'] ?? 0.0).toDouble(),
+          protein: (data['Protein'] ?? 0.0).toDouble(),
+          carbs: (data['Carbs'] ?? 0.0).toDouble(),
+          fat: (data['Fat'] ?? 0.0).toDouble(),
+          fiber: (data['Fiber'] ?? 0.0).toDouble(),
+          sugar: (data['Sugar'] ?? 0.0).toDouble(),
+          sodium: (data['Sodium'] ?? 0.0).toDouble(),
+          servingSize: data['ServingSize']?.isEmpty == true ? null : data['ServingSize'],
+        );
+      }
+
       return Product(
         id: data['RowKey'] ?? '',
         name: data['Name'] ?? '',
@@ -70,6 +147,7 @@ class InventoryProvider extends ChangeNotifier {
         category: data['Category'] ?? 'Other',
         quantity: (data['Quantity'] ?? 0).toDouble(),
         unit: data['Unit'] ?? 'pcs',
+        actualWeight: data['ActualWeight']?.toDouble(),
         expiryDate:
             data['ExpiryDate']?.isEmpty == true ? null : DateTime.tryParse(data['ExpiryDate']),
         purchaseDate:
@@ -79,6 +157,7 @@ class InventoryProvider extends ChangeNotifier {
         imageUrl: data['ImageUrl']?.isEmpty == true ? null : data['ImageUrl'],
         storageLocation: data['StorageLocation']?.isEmpty == true ? null : data['StorageLocation'],
         dateAdded: data['DateAdded']?.isEmpty == true ? null : DateTime.tryParse(data['DateAdded']),
+        nutritionInfo: nutritionInfo,
       );
     } catch (e) {
       debugPrint('Error parsing product: $e');
@@ -143,9 +222,56 @@ class InventoryProvider extends ChangeNotifier {
   Future<void> updateProductQuantity(String id, double newQuantity) async {
     final product = getProductById(id);
     if (product != null) {
-      product.quantity = newQuantity;
-      await product.save();
-      _loadProducts();
+      // Recalculate nutrition if product has nutrition info and actual weight
+      NutritionInfo? updatedNutritionInfo = product.nutritionInfo;
+      if (product.nutritionInfo != null &&
+          product.actualWeight != null &&
+          product.actualWeight! > 0) {
+        final actualWeight = product.actualWeight!;
+        final currentQuantity = product.quantity;
+        final weightFactor = actualWeight / 100.0;
+
+        // Calculate per-100g values from current total nutrition
+        final per100gCalories = product.nutritionInfo!.calories / (weightFactor * currentQuantity);
+        final per100gProtein = product.nutritionInfo!.protein / (weightFactor * currentQuantity);
+        final per100gFat = product.nutritionInfo!.fat / (weightFactor * currentQuantity);
+        final per100gCarbs = product.nutritionInfo!.carbs / (weightFactor * currentQuantity);
+        final per100gFiber = product.nutritionInfo!.fiber / (weightFactor * currentQuantity);
+
+        // Calculate new total nutrition for new quantity
+        final newTotalFactor = weightFactor * newQuantity;
+        updatedNutritionInfo = NutritionInfo(
+          calories: per100gCalories * newTotalFactor,
+          protein: per100gProtein * newTotalFactor,
+          fat: per100gFat * newTotalFactor,
+          carbs: per100gCarbs * newTotalFactor,
+          fiber: per100gFiber * newTotalFactor,
+          sugar: product.nutritionInfo!.sugar,
+          sodium: product.nutritionInfo!.sodium,
+          servingSize: product.nutritionInfo!.servingSize,
+        );
+      }
+
+      // Create updated product with new quantity and recalculated nutrition
+      final updatedProduct = Product(
+        id: product.id,
+        name: product.name,
+        barcode: product.barcode,
+        category: product.category,
+        brand: product.brand,
+        imageUrl: product.imageUrl,
+        quantity: newQuantity,
+        unit: product.unit,
+        actualWeight: product.actualWeight,
+        purchaseDate: product.purchaseDate,
+        expiryDate: product.expiryDate,
+        nutritionInfo: updatedNutritionInfo,
+        storageLocation: product.storageLocation,
+        dateAdded: product.dateAdded,
+        storageTips: product.storageTips,
+      );
+
+      await updateProduct(updatedProduct);
     }
   }
 
@@ -236,5 +362,12 @@ class InventoryProvider extends ChangeNotifier {
       _isOnline = false;
       debugPrint('Error syncing to Azure: $e');
     }
+  }
+
+  // Clear all local products (for testing)
+  Future<void> clearLocalStorage() async {
+    await _productBox.clear();
+    _loadProducts();
+    debugPrint('🗑️ Cleared all local products');
   }
 }

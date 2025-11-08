@@ -52,6 +52,9 @@ class Product extends HiveObject {
   @HiveField(14)
   String? storageTips;
 
+  @HiveField(15)
+  double? actualWeight; // in grams
+
   Product({
     required this.id,
     required this.name,
@@ -68,6 +71,7 @@ class Product extends HiveObject {
     this.dateAdded,
     this.nutritionInfo,
     this.storageTips,
+    this.actualWeight,
   });
 
   // Calculate days until expiry
@@ -81,8 +85,7 @@ class Product extends HiveObject {
   bool get isExpired => expiryDate != null && daysUntilExpiry < 0;
 
   // Check if expiring soon (within 3 days)
-  bool get isExpiringSoon =>
-      expiryDate != null && daysUntilExpiry >= 0 && daysUntilExpiry <= 3;
+  bool get isExpiringSoon => expiryDate != null && daysUntilExpiry >= 0 && daysUntilExpiry <= 3;
 
   // Check if low stock (quantity <= 2)
   bool get isLowStock => quantity <= 2;
@@ -93,7 +96,7 @@ class Product extends HiveObject {
   }
 }
 
-@HiveType(typeId: 1)
+@HiveType(typeId: 5)
 class NutritionInfo {
   @HiveField(0)
   double calories;

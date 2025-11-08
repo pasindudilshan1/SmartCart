@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/azure_auth_service.dart';
+import '../providers/inventory_provider.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
 
@@ -35,6 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (userId == null) {
         throw Exception('No user found after authentication');
       }
+
+      // Set user ID in inventory provider to trigger sync
+      final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+      inventoryProvider.setUserId(userId);
+      print('👤 Login: Set userId in inventory provider: $userId');
 
       print('✅ Sign in successful, navigating to home screen...');
 

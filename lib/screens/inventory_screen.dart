@@ -3,10 +3,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../providers/inventory_provider.dart';
 import '../models/product.dart';
 import 'product_detail_screen.dart';
 import '../widgets/product_card.dart';
+import 'initial_inventory_setup_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -18,6 +20,15 @@ class InventoryScreen extends StatefulWidget {
 class _InventoryScreenState extends State<InventoryScreen> {
   String _selectedFilter = 'All';
   String _selectedLocation = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    // Sync with Azure when screen loads to ensure we have latest products
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<InventoryProvider>().syncFromCloud();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +65,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    setState(() {});
+                    // Sync with Azure to get latest products
+                    await inventoryProvider.syncFromCloud();
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.all(8.0),
@@ -67,8 +79,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  ProductDetailScreen(product: product),
+                              builder: (_) => ProductDetailScreen(product: product),
                             ),
                           );
                         },
@@ -83,12 +94,254 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // Navigate to scanner
-          DefaultTabController.of(context).animateTo(1);
-        },
+        onPressed: _showAddOptionsDialog,
         icon: const Icon(Icons.add),
-        label: const Text('Add Item'),
+        label: const Text('Add Items'),
+      ),
+    );
+  }
+
+  void _showAddOptionsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Items'),
+        content: const Text('How would you like to add items to your inventory?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              // Navigate to scanner tab
+              DefaultTabController.of(context).animateTo(1);
+            },
+            child: const Text('SCAN'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              _showManualEntryDialog();
+            },
+            child: const Text('MANUAL'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showManualEntryDialog() {
+    final nameController = TextEditingController();
+    final quantityController = TextEditingController(text: '1');
+    final actualWeightController = TextEditingController();
+    String selectedCategory = 'Other';
+    final caloriesController = TextEditingController();
+    final proteinController = TextEditingController();
+    final fatController = TextEditingController();
+    final carbsController = TextEditingController();
+    final fiberController = TextEditingController();
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Product Manually'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Product Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    'Fruits & Vegetables',
+                    'Dairy',
+                    'Meat & Poultry',
+                    'Seafood',
+                    'Grains & Bread',
+                    'Pantry Staples',
+                    'Snacks',
+                    'Beverages',
+                    'Frozen Foods',
+                    'Other',
+                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => selectedCategory = v);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: quantityController,
+                  decoration: const InputDecoration(
+                    labelText: 'Quantity',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Expiry Date'),
+                  subtitle: Text(selectedDate.toString().split(' ')[0]),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (date != null) {
+                      setState(() => selectedDate = date);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: actualWeightController,
+                  decoration: const InputDecoration(
+                    labelText: 'Actual Weight (g)',
+                    border: OutlineInputBorder(),
+                    hintText: 'Enter product weight in grams',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Nutrition Information (per 100g)',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: caloriesController,
+                        decoration: const InputDecoration(
+                          labelText: 'Calories',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: proteinController,
+                        decoration: const InputDecoration(
+                          labelText: 'Protein (g)',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: fatController,
+                        decoration: const InputDecoration(
+                          labelText: 'Fat (g)',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: carbsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Carbs (g)',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: fiberController,
+                  decoration: const InputDecoration(
+                    labelText: 'Fiber (g)',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isNotEmpty) {
+                  // Create nutrition info if any fields are filled
+                  NutritionInfo? nutritionInfo;
+                  if (caloriesController.text.isNotEmpty ||
+                      proteinController.text.isNotEmpty ||
+                      fatController.text.isNotEmpty ||
+                      carbsController.text.isNotEmpty ||
+                      fiberController.text.isNotEmpty) {
+                    // Get actual weight, default to 100g if not specified
+                    final actualWeight = double.tryParse(actualWeightController.text) ?? 100.0;
+                    final quantity = double.tryParse(quantityController.text) ?? 1.0;
+                    final weightMultiplier = actualWeight / 100.0;
+                    final totalMultiplier = weightMultiplier * quantity;
+
+                    nutritionInfo = NutritionInfo(
+                      calories: (double.tryParse(caloriesController.text) ?? 0.0) * totalMultiplier,
+                      protein: (double.tryParse(proteinController.text) ?? 0.0) * totalMultiplier,
+                      fat: (double.tryParse(fatController.text) ?? 0.0) * totalMultiplier,
+                      carbs: (double.tryParse(carbsController.text) ?? 0.0) * totalMultiplier,
+                      fiber: (double.tryParse(fiberController.text) ?? 0.0) * totalMultiplier,
+                    );
+                  }
+
+                  final product = Product(
+                    id: const Uuid().v4(),
+                    name: nameController.text,
+                    expiryDate: selectedDate,
+                    quantity: double.tryParse(quantityController.text) ?? 1.0,
+                    unit: 'pcs',
+                    category: selectedCategory,
+                    actualWeight: double.tryParse(actualWeightController.text),
+                    purchaseDate: DateTime.now(),
+                    nutritionInfo: nutritionInfo,
+                  );
+
+                  await context.read<InventoryProvider>().addProduct(product);
+                  Navigator.pop(context); // Close dialog
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${product.name} added to inventory')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -189,9 +442,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     // Apply location filter
     if (_selectedLocation != 'All') {
       products = products
-          .where((p) =>
-              p.storageLocation?.toLowerCase() ==
-              _selectedLocation.toLowerCase())
+          .where((p) => p.storageLocation?.toLowerCase() == _selectedLocation.toLowerCase())
           .toList();
     }
 
@@ -217,11 +468,28 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Scan a QR code to add your first item',
+          const Text(
+            'Set up your initial inventory to get started',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[500],
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const InitialInventorySetupScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Set Up Inventory'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],

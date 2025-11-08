@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/azure_auth_service.dart';
 import '../services/azure_table_service.dart';
 import '../services/local_storage_service.dart';
+import '../providers/inventory_provider.dart';
 import '../models/household_member.dart';
 import 'home_screen.dart';
 
@@ -144,6 +145,10 @@ class _HouseholdSetupScreenState extends State<HouseholdSetupScreen> {
       print('✅ Setup marked complete');
 
       if (!mounted) return;
+
+      // Set user ID in inventory provider to trigger sync
+      final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+      inventoryProvider.setUserId(userId);
 
       print('🏠 Navigating to Home Screen...');
       Navigator.of(context).pushAndRemoveUntil(

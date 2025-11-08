@@ -1,5 +1,5 @@
-// Copilot Task 2: QR Code Scanner Screen
-// Scans barcodes and extracts product information from Open Food Facts
+// Initial Inventory Setup Screen
+// Allows users to scan or manually enter existing food items at home for initial inventory setup
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -10,18 +10,20 @@ import '../providers/inventory_provider.dart';
 import '../models/product.dart';
 import '../services/barcode_service.dart';
 
-class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
+class InitialInventorySetupScreen extends StatefulWidget {
+  const InitialInventorySetupScreen({super.key});
 
   @override
-  State<ScannerScreen> createState() => _ScannerScreenState();
+  State<InitialInventorySetupScreen> createState() => _InitialInventorySetupScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _InitialInventorySetupScreenState extends State<InitialInventorySetupScreen> {
   MobileScannerController cameraController = MobileScannerController();
   final BarcodeService _barcodeService = BarcodeService();
   bool _isProcessing = false;
   final Uuid _uuid = const Uuid();
+  final List<Product> _setupProducts = [];
+  bool _isScanningMode = true;
 
   @override
   void initState() {
@@ -34,7 +36,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     if (status.isDenied) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera permission is required')),
+          const SnackBar(content: Text('Camera permission is required for scanning')),
         );
       }
     }
@@ -44,7 +46,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan QR Code'),
+        title: const Text('Initial Inventory Setup'),
         actions: [
           IconButton(
             icon: ValueListenableBuilder(
@@ -66,47 +68,69 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
         ],
       ),
-      body: Stack(
+      body: Column(
         children: [
-          MobileScanner(
-            controller: cameraController,
-            onDetect: (capture) {
-              if (!_isProcessing) {
-                _onQRScanned(capture);
-              }
-            },
-          ),
-          _buildScannerOverlay(),
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Scan a product QR code',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+          // Mode toggle
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Theme.of(context).colorScheme.surface,
+            child: Row(
+              children: [
+                Expanded(
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment<bool>(
+                        value: true,
+                        label: Text('Scan Items'),
+                        icon: Icon(Icons.qr_code_scanner),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Position the QR code within the frame',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: _showManualEntryDialog,
-                      icon: const Icon(Icons.keyboard),
-                      label: const Text('Enter Manually'),
-                    ),
-                  ],
+                      ButtonSegment<bool>(
+                        value: false,
+                        label: Text('Manual Entry'),
+                        icon: Icon(Icons.keyboard),
+                      ),
+                    ],
+                    selected: {_isScanningMode},
+                    onSelectionChanged: (Set<bool> selected) {
+                      setState(() {
+                        _isScanningMode = selected.first;
+                      });
+                    },
+                  ),
                 ),
-              ),
+              ],
+            ),
+          ),
+
+          // Main content area
+          Expanded(
+            child: _isScanningMode ? _buildScannerView() : _buildManualEntryView(),
+          ),
+
+          // Product list and finish button
+          if (_setupProducts.isNotEmpty) _buildProductList(),
+
+          // Bottom action bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${_setupProducts.length} items added',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _setupProducts.isEmpty ? null : _finishSetup,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Finish Setup'),
+                ),
+              ],
             ),
           ),
         ],
@@ -114,15 +138,159 @@ class _ScannerScreenState extends State<ScannerScreen> {
     );
   }
 
-  Widget _buildScannerOverlay() {
-    return Center(
-      child: Container(
-        width: 250,
-        height: 250,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.green, width: 3),
-          borderRadius: BorderRadius.circular(12),
+  Widget _buildScannerView() {
+    return Stack(
+      children: [
+        MobileScanner(
+          controller: cameraController,
+          onDetect: (capture) {
+            if (!_isProcessing) {
+              _onQRScanned(capture);
+            }
+          },
         ),
+        Center(
+          child: Container(
+            width: 250,
+            height: 250,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.green, width: 3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Text(
+                    'Scan product QR codes',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Position the QR code within the frame',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: _showManualEntryDialog,
+                    icon: const Icon(Icons.keyboard),
+                    label: const Text('Enter Manually'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildManualEntryView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 100,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Add items manually',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Enter details for each item in your inventory',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _showManualEntryDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Item'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductList() {
+    return Container(
+      height: 120,
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.all(8),
+        itemCount: _setupProducts.length,
+        itemBuilder: (context, index) {
+          final product = _setupProducts[index];
+          return Card(
+            margin: const EdgeInsets.only(right: 8),
+            child: Container(
+              width: 100,
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  if (product.imageUrl != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.network(
+                        product.imageUrl!,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2, size: 40),
+                      ),
+                    )
+                  else
+                    const Icon(Icons.inventory_2, size: 40),
+                  const SizedBox(height: 4),
+                  Text(
+                    product.name,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    '${product.quantity} ${product.unit}',
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 16),
+                    onPressed: () => _removeProduct(index),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -142,25 +310,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return;
     }
 
-    // Parse QR code data (assume JSON format or simple text)
     await _processQRData(code);
-
     setState(() => _isProcessing = false);
   }
 
   Future<void> _processQRData(String qrData) async {
     try {
-      // Show loading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
               children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
                 SizedBox(width: 16),
                 Text('Looking up product...'),
               ],
@@ -170,11 +331,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
         );
       }
 
-      // Try to fetch product from Open Food Facts API
       final productData = await _barcodeService.getProductByBarcode(qrData);
 
       if (productData != null && mounted) {
-        // Product found in database
         final info = productData['product'] as Map<String, dynamic>;
         final nutrition = productData['nutrition'] as Map<String, dynamic>?;
 
@@ -188,12 +347,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
           quantity: 1,
           unit: info['unit'] ?? 'pcs',
           purchaseDate: DateTime.now(),
-          expiryDate: DateTime.now().add(const Duration(days: 7)), // Default 7 days
+          expiryDate: DateTime.now().add(const Duration(days: 7)),
         );
 
         _showProductDialog(product, nutrition: nutrition);
       } else {
-        // Product not found - show manual entry with barcode
         _showManualEntryDialog(barcode: qrData);
       }
     } catch (e) {
@@ -215,7 +373,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final carbsController =
         TextEditingController(text: nutrition?['carbohydrates']?.toString() ?? '');
     final fiberController = TextEditingController();
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    DateTime selectedDate = product.expiryDate ?? DateTime.now().add(const Duration(days: 7));
 
     final categories = [
       'Fruits & Vegetables',
@@ -309,15 +467,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ),
                   const SizedBox(height: 12),
 
+                  // Quantity
                   TextField(
                     controller: quantityController,
                     decoration: const InputDecoration(
-                      labelText: 'Quantity',
+                      labelText: 'Current Stock Quantity',
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 12),
+
+                  // Expiry date
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Expiry Date'),
@@ -335,6 +496,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       }
                     },
                   ),
+
                   const SizedBox(height: 16),
                   const Text(
                     'Nutrition Information (per 100g) - Edit if needed',
@@ -401,30 +563,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     ),
                     keyboardType: TextInputType.number,
                   ),
-                  const SizedBox(height: 12),
-                  // Category selector for scanned product (editable)
-                  DropdownButtonFormField<String>(
-                    initialValue: product.category,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      'Fruits & Vegetables',
-                      'Dairy',
-                      'Meat & Poultry',
-                      'Seafood',
-                      'Grains & Bread',
-                      'Pantry Staples',
-                      'Snacks',
-                      'Beverages',
-                      'Frozen Foods',
-                      'Other',
-                    ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) {
-                      if (v != null) product.category = v;
-                    },
-                  ),
+
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -435,7 +574,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: () async {
+                        onPressed: () {
                           // Create nutrition info if any fields are filled
                           NutritionInfo? nutritionInfo;
                           if (caloriesController.text.isNotEmpty ||
@@ -463,17 +602,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             unit: product.unit,
                             purchaseDate: DateTime.now(),
                             expiryDate: selectedDate,
+                            dateAdded: DateTime.now(),
                             nutritionInfo: nutritionInfo,
                           );
 
-                          await context.read<InventoryProvider>().addProduct(updatedProduct);
-                          if (context.mounted) {
-                            // Close the bottom sheet and navigate back to inventory tab
-                            Navigator.pop(context);
-                            // Navigate to inventory tab (tab 0)
-                            DefaultTabController.of(context).animateTo(0);
+                          setState(() => _setupProducts.add(updatedProduct));
+                          Navigator.pop(context);
+
+                          if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('${product.name} added to inventory')),
+                              SnackBar(content: Text('${product.name} added to setup')),
                             );
                           }
                         },
@@ -500,6 +638,19 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final carbsController = TextEditingController();
     final fiberController = TextEditingController();
     DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    final categories = [
+      'Fruits & Vegetables',
+      'Dairy',
+      'Meat & Poultry',
+      'Seafood',
+      'Grains & Bread',
+      'Pantry Staples',
+      'Snacks',
+      'Beverages',
+      'Frozen Foods',
+      'Other'
+    ];
 
     showDialog(
       context: context,
@@ -535,27 +686,23 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     labelText: 'Category',
                     border: OutlineInputBorder(),
                   ),
-                  items: [
-                    'Fruits & Vegetables',
-                    'Dairy',
-                    'Meat & Poultry',
-                    'Seafood',
-                    'Grains & Bread',
-                    'Pantry Staples',
-                    'Snacks',
-                    'Beverages',
-                    'Frozen Foods',
-                    'Other',
-                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                  onChanged: (v) {
-                    if (v != null) categoryController.text = v;
+                  items: categories.map((category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      categoryController.text = value;
+                    }
                   },
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: quantityController,
                   decoration: const InputDecoration(
-                    labelText: 'Quantity',
+                    labelText: 'Current Stock Quantity',
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
@@ -680,16 +827,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     barcode: barcode,
                     category: categoryController.text,
                     purchaseDate: DateTime.now(),
+                    dateAdded: DateTime.now(),
                     nutritionInfo: nutritionInfo,
                   );
 
-                  context.read<InventoryProvider>().addProduct(product);
-                  Navigator.pop(context); // Close dialog
-                  // Navigate to inventory tab (tab 0)
-                  DefaultTabController.of(context).animateTo(0);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${product.name} added to inventory')),
-                  );
+                  setState(() => _setupProducts.add(product));
+                  Navigator.pop(context);
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${product.name} added to setup')),
+                    );
+                  }
                 }
               },
               child: const Text('Add'),
@@ -698,6 +847,40 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ),
       ),
     );
+  }
+
+  void _removeProduct(int index) {
+    setState(() {
+      _setupProducts.removeAt(index);
+    });
+  }
+
+  Future<void> _finishSetup() async {
+    if (_setupProducts.isEmpty) return;
+
+    try {
+      final inventoryProvider = context.read<InventoryProvider>();
+
+      // Add all products to inventory
+      for (final product in _setupProducts) {
+        await inventoryProvider.addProduct(product);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Added ${_setupProducts.length} items to your inventory!')),
+        );
+
+        // Navigate back to home
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving inventory: $e')),
+        );
+      }
+    }
   }
 
   @override
