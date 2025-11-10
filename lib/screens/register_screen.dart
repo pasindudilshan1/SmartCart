@@ -1,7 +1,7 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/azure_auth_service.dart';
-import '../providers/inventory_provider.dart';
 import 'household_setup_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -35,9 +35,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    print('🔐 Starting signup process...');
-    print('Name: ${_nameController.text.trim()}');
-    print('Email: ${_emailController.text.trim()}');
+    debugPrint('🔐 Starting signup process...');
+    debugPrint('Name: ${_nameController.text.trim()}');
+    debugPrint('Email: ${_emailController.text.trim()}');
 
     final authService = Provider.of<AzureAuthService>(context, listen: false);
     final error = await authService.signUpWithEmail(
@@ -46,21 +46,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _nameController.text.trim(),
     );
 
-    print('Signup result - Error: $error');
+    debugPrint('Signup result - Error: $error');
 
     if (error == null) {
-      print('✅ Sign up successful, navigating to household setup...');
+      debugPrint('✅ Sign up successful, navigating to household setup...');
       if (mounted) {
         // Always navigate to household setup after signup
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const HouseholdSetupScreen()),
         );
-        print('✅ Navigation to household setup initiated');
+        debugPrint('✅ Navigation to household setup initiated');
       } else {
-        print('❌ Widget not mounted, cannot navigate');
+        debugPrint('❌ Widget not mounted, cannot navigate');
       }
     } else {
-      print('❌ Signup failed: $error');
+      debugPrint('❌ Signup failed: $error');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(

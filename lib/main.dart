@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -14,7 +15,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    print('📦 Initializing Hive...');
+    debugPrint('📦 Initializing Hive...');
     // Initialize Hive
     await Hive.initFlutter();
 
@@ -22,20 +23,20 @@ void main() async {
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(ProductAdapter());
     }
-    if (!Hive.isAdapterRegistered(1)) {
+    if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(DailyNutritionAdapter());
     }
-    if (!Hive.isAdapterRegistered(2)) {
+    if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(NutritionGoalsAdapter());
     }
-    if (!Hive.isAdapterRegistered(3)) {
-      Hive.registerAdapter(SustainabilityMetricsAdapter());
-    }
     if (!Hive.isAdapterRegistered(4)) {
-      Hive.registerAdapter(HouseholdMemberAdapter());
+      Hive.registerAdapter(SustainabilityMetricsAdapter());
     }
     if (!Hive.isAdapterRegistered(5)) {
       Hive.registerAdapter(NutritionInfoAdapter());
+    }
+    if (!Hive.isAdapterRegistered(6)) {
+      Hive.registerAdapter(HouseholdMemberAdapter());
     }
 
     // Open Hive boxes
@@ -43,12 +44,12 @@ void main() async {
     await Hive.openBox('settings');
     await Hive.openBox('nutrition');
     await Hive.openBox<HouseholdMember>('household_members');
-    print('✅ Hive initialized successfully');
+    debugPrint('✅ Hive initialized successfully');
   } catch (e) {
-    print('❌ Hive initialization error: $e');
+    debugPrint('❌ Hive initialization error: $e');
   }
 
-  print('🚀 Starting SmartCart app...');
+  debugPrint('🚀 Starting SmartCart app...');
   runApp(const SmartCartApp());
 }
 

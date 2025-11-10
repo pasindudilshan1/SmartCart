@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'household_member.g.dart';
 
-@HiveType(typeId: 4)
+@HiveType(typeId: 6)
 class HouseholdMember extends HiveObject {
   @HiveField(0)
   String id;

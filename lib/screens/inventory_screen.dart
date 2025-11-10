@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/inventory_provider.dart';
 import '../models/product.dart';
+import '../services/azure_table_service.dart';
 import 'product_detail_screen.dart';
 import 'initial_inventory_setup_screen.dart';
 
@@ -126,16 +127,33 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _showManualEntryDialog() {
-    final nameController = TextEditingController();
     final quantityController = TextEditingController(text: '1');
-    final actualWeightController = TextEditingController();
+    double quantity = 1.0; // Add quantity state variable
     String selectedCategory = 'Other';
-    final caloriesController = TextEditingController();
-    final proteinController = TextEditingController();
-    final fatController = TextEditingController();
-    final carbsController = TextEditingController();
-    final fiberController = TextEditingController();
+    Map<String, dynamic>? selectedProduct;
+    List<Map<String, dynamic>> shoppingListItems = [];
+    bool isLoadingProducts = false;
     DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    final azureService = AzureTableService();
+
+    // Function to load products for selected category
+    Future<void> loadProductsForCategory(String category) async {
+      isLoadingProducts = true;
+      try {
+        final allItems = await azureService.getAllShoppingListItems();
+        shoppingListItems = allItems.where((item) {
+          final itemCategory = item['Category'] ?? '';
+          return itemCategory.toLowerCase() == category.toLowerCase();
+        }).toList();
+      } catch (e) {
+        print('Error loading shopping list items: $e');
+        shoppingListItems = [];
+      }
+      isLoadingProducts = false;
+    }
+
+    // Load initial products for default category
+    loadProductsForCategory(selectedCategory);
 
     showDialog(
       context: context,
@@ -146,18 +164,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Product Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
+                // Category Selection
                 DropdownButtonFormField<String>(
                   initialValue: selectedCategory,
                   decoration: const InputDecoration(
-                    labelText: 'Category',
+                    labelText: 'Category *',
                     border: OutlineInputBorder(),
                   ),
                   items: [
@@ -172,13 +183,46 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     'Frozen Foods',
                     'Other',
                   ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                  onChanged: (v) {
+                  onChanged: (v) async {
                     if (v != null) {
-                      setState(() => selectedCategory = v);
+                      setState(() {
+                        selectedCategory = v;
+                        selectedProduct = null; // Reset selected product
+                        isLoadingProducts = true;
+                      });
+                      await loadProductsForCategory(v);
+                      setState(() {
+                        isLoadingProducts = false;
+                      });
                     }
                   },
                 ),
                 const SizedBox(height: 12),
+                // Product Name Selection
+                DropdownButtonFormField<Map<String, dynamic>>(
+                  initialValue: selectedProduct,
+                  decoration: InputDecoration(
+                    labelText: 'Product Name *',
+                    border: const OutlineInputBorder(),
+                    hintText: isLoadingProducts ? 'Loading products...' : 'Select a product',
+                  ),
+                  items: shoppingListItems.map((item) {
+                    final productName = item['ProductName'] ?? 'Unknown Product';
+                    final brand = item['Brand'] ?? '';
+                    return DropdownMenuItem(
+                      value: item,
+                      child: Text(
+                        brand.isNotEmpty ? '$productName ($brand)' : productName,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    setState(() => selectedProduct = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                // Quantity Input
                 TextField(
                   controller: quantityController,
                   decoration: const InputDecoration(
@@ -186,8 +230,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
+                  onChanged: (value) {
+                    setState(() {
+                      quantity = double.tryParse(value) ?? 1.0;
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
+                // Expiry Date
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Expiry Date'),
@@ -205,82 +255,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: actualWeightController,
-                  decoration: const InputDecoration(
-                    labelText: 'Actual Weight (g)',
-                    border: OutlineInputBorder(),
-                    hintText: 'Enter product weight in grams',
+                // Nutrition Information Display
+                if (selectedProduct != null) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Nutrition Information',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Nutrition Information (per 100g)',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: caloriesController,
-                        decoration: const InputDecoration(
-                          labelText: 'Calories',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: proteinController,
-                        decoration: const InputDecoration(
-                          labelText: 'Protein (g)',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: fatController,
-                        decoration: const InputDecoration(
-                          labelText: 'Fat (g)',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: carbsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Carbs (g)',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: fiberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Fiber (g)',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
+                  const SizedBox(height: 8),
+                  _buildNutritionDisplay(selectedProduct!, quantity),
+                ],
               ],
             ),
           ),
@@ -290,56 +274,149 @@ class _InventoryScreenState extends State<InventoryScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.isNotEmpty) {
-                  // Create nutrition info if any fields are filled
-                  NutritionInfo? nutritionInfo;
-                  if (caloriesController.text.isNotEmpty ||
-                      proteinController.text.isNotEmpty ||
-                      fatController.text.isNotEmpty ||
-                      carbsController.text.isNotEmpty ||
-                      fiberController.text.isNotEmpty) {
-                    // Get actual weight, default to 100g if not specified
-                    final actualWeight = double.tryParse(actualWeightController.text) ?? 100.0;
-                    final quantity = double.tryParse(quantityController.text) ?? 1.0;
-                    final weightMultiplier = actualWeight / 100.0;
-                    final totalMultiplier = weightMultiplier * quantity;
+              onPressed: selectedProduct != null
+                  ? () async {
+                      // Calculate nutrition based on selected product
+                      NutritionInfo? nutritionInfo;
+                      if (selectedProduct!['Calories'] != null ||
+                          selectedProduct!['Protein'] != null ||
+                          selectedProduct!['Fat'] != null ||
+                          selectedProduct!['Carbs'] != null ||
+                          selectedProduct!['Fiber'] != null) {
+                        // Get base values (per 100g/ml)
+                        final baseCalories = selectedProduct!['Calories']?.toDouble() ?? 0.0;
+                        final baseProtein = selectedProduct!['Protein']?.toDouble() ?? 0.0;
+                        final baseFat = selectedProduct!['Fat']?.toDouble() ?? 0.0;
+                        final baseCarbs = selectedProduct!['Carbs']?.toDouble() ?? 0.0;
+                        final baseFiber = selectedProduct!['Fiber']?.toDouble() ?? 0.0;
 
-                    nutritionInfo = NutritionInfo(
-                      calories: (double.tryParse(caloriesController.text) ?? 0.0) * totalMultiplier,
-                      protein: (double.tryParse(proteinController.text) ?? 0.0) * totalMultiplier,
-                      fat: (double.tryParse(fatController.text) ?? 0.0) * totalMultiplier,
-                      carbs: (double.tryParse(carbsController.text) ?? 0.0) * totalMultiplier,
-                      fiber: (double.tryParse(fiberController.text) ?? 0.0) * totalMultiplier,
-                    );
-                  }
+                        // Get actual weight per unit
+                        final actualWeightPerUnit =
+                            selectedProduct!['ActualWeight']?.toDouble() ?? 100.0;
+                        final totalActualWeight = actualWeightPerUnit * quantity;
+                        final weightMultiplier = totalActualWeight / 100.0;
 
-                  final product = Product(
-                    id: const Uuid().v4(),
-                    name: nameController.text,
-                    expiryDate: selectedDate,
-                    quantity: double.tryParse(quantityController.text) ?? 1.0,
-                    unit: 'pcs',
-                    category: selectedCategory,
-                    actualWeight: double.tryParse(actualWeightController.text),
-                    purchaseDate: DateTime.now(),
-                    nutritionInfo: nutritionInfo,
-                  );
+                        nutritionInfo = NutritionInfo(
+                          calories: baseCalories * weightMultiplier,
+                          protein: baseProtein * weightMultiplier,
+                          fat: baseFat * weightMultiplier,
+                          carbs: baseCarbs * weightMultiplier,
+                          fiber: baseFiber * weightMultiplier,
+                        );
+                      }
 
-                  await context.read<InventoryProvider>().addProduct(product);
-                  Navigator.pop(context); // Close dialog
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${product.name} added to inventory')),
-                    );
-                  }
-                }
-              },
+                      final product = Product(
+                        id: const Uuid().v4(),
+                        name: selectedProduct!['ProductName'] ?? 'Unknown Product',
+                        expiryDate: selectedDate,
+                        quantity: quantity,
+                        unit: selectedProduct!['Unit'] ?? 'pcs',
+                        category: selectedCategory,
+                        actualWeight: selectedProduct!['ActualWeight']?.toDouble(),
+                        purchaseDate: DateTime.now(),
+                        nutritionInfo: nutritionInfo,
+                        brand: selectedProduct!['Brand'],
+                        barcode: selectedProduct!['Barcode'],
+                      );
+
+                      await context.read<InventoryProvider>().addProduct(product);
+                      if (context.mounted) {
+                        Navigator.pop(context); // Close dialog
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('${product.name} added to inventory')),
+                        );
+                      }
+                    }
+                  : null,
               child: const Text('Add'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNutritionDisplay(Map<String, dynamic> product, double quantity) {
+    // Get base values (per 100g/ml)
+    final baseCalories = product['Calories']?.toDouble() ?? 0.0;
+    final baseProtein = product['Protein']?.toDouble() ?? 0.0;
+    final baseFat = product['Fat']?.toDouble() ?? 0.0;
+    final baseCarbs = product['Carbs']?.toDouble() ?? 0.0;
+    final baseFiber = product['Fiber']?.toDouble() ?? 0.0;
+
+    // Get actual weight per unit
+    final actualWeightPerUnit = product['ActualWeight']?.toDouble() ?? 100.0;
+    final totalActualWeight = actualWeightPerUnit * quantity;
+    final weightMultiplier = totalActualWeight / 100.0;
+
+    // Calculate total nutrition
+    final totalCalories = baseCalories * weightMultiplier;
+    final totalProtein = baseProtein * weightMultiplier;
+    final totalFat = baseFat * weightMultiplier;
+    final totalCarbs = baseCarbs * weightMultiplier;
+    final totalFiber = baseFiber * weightMultiplier;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Per ${totalActualWeight.toStringAsFixed(0)}${product['Category']?.toLowerCase() == 'beverages' ? 'ml' : 'g'}:',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildNutritionItem('Calories', totalCalories.toStringAsFixed(0)),
+              ),
+              Expanded(
+                child: _buildNutritionItem('Protein', '${totalProtein.toStringAsFixed(1)}g'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: _buildNutritionItem('Fat', '${totalFat.toStringAsFixed(1)}g'),
+              ),
+              Expanded(
+                child: _buildNutritionItem('Carbs', '${totalCarbs.toStringAsFixed(1)}g'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          _buildNutritionItem('Fiber', '${totalFiber.toStringAsFixed(1)}g'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNutritionItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 

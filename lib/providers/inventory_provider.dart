@@ -370,4 +370,43 @@ class InventoryProvider extends ChangeNotifier {
     _loadProducts();
     debugPrint('🗑️ Cleared all local products');
   }
+
+  // Calculate total nutrition from all inventory products
+  Map<String, double> getTotalInventoryNutrition() {
+    double totalCalories = 0.0;
+    double totalProtein = 0.0;
+    double totalCarbs = 0.0;
+    double totalFat = 0.0;
+    double totalFiber = 0.0;
+
+    for (var product in _products) {
+      if (product.nutritionInfo != null) {
+        // Calculate nutrition based on quantity and unit
+        double multiplier = 1.0;
+
+        // If we have actual weight, use it for calculation
+        if (product.actualWeight != null && product.actualWeight! > 0) {
+          // Nutrition info is per 100g, so divide by 100 and multiply by actual weight
+          multiplier = product.actualWeight! / 100.0;
+        } else {
+          // Fallback to quantity if no actual weight
+          multiplier = product.quantity;
+        }
+
+        totalCalories += product.nutritionInfo!.calories * multiplier;
+        totalProtein += product.nutritionInfo!.protein * multiplier;
+        totalCarbs += product.nutritionInfo!.carbs * multiplier;
+        totalFat += product.nutritionInfo!.fat * multiplier;
+        totalFiber += product.nutritionInfo!.fiber * multiplier;
+      }
+    }
+
+    return {
+      'calories': totalCalories,
+      'protein': totalProtein,
+      'carbs': totalCarbs,
+      'fat': totalFat,
+      'fiber': totalFiber,
+    };
+  }
 }

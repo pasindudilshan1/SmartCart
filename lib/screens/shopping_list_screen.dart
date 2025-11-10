@@ -1,5 +1,6 @@
 // Shopping List Screen with Manual and Scan tabs
 
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/inventory_provider.dart';
@@ -62,7 +63,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading shopping items: $e');
+      debugPrint('Error loading shopping items: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -199,8 +200,18 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
           productName,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Text(
-          '$brand${brand.isNotEmpty ? ' • ' : ''}$category\n$quantity $unit${price > 0 ? ' • \$${price.toStringAsFixed(2)}' : ''}',
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$brand${brand.isNotEmpty ? ' • ' : ''}$category',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            Text(
+              '$quantity $unit${price > 0 ? ' • \$${price.toStringAsFixed(2)}' : ''}',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ],
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => _showProductDetails(item),
@@ -328,24 +339,26 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
         final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
         await inventoryProvider.addProduct(product);
 
-        Navigator.pop(context); // Close the bottom sheet
+        if (mounted) {
+          Navigator.pop(context); // Close the bottom sheet
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${product.name} added to inventory'),
-            backgroundColor: Colors.green,
-            action: SnackBarAction(
-              label: 'VIEW',
-              textColor: Colors.white,
-              onPressed: () {
-                Navigator.pushNamed(context, '/inventory');
-              },
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${product.name} added to inventory'),
+              backgroundColor: Colors.green,
+              action: SnackBarAction(
+                label: 'VIEW',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.pushNamed(context, '/inventory');
+                },
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
-      print('Error purchasing product: $e');
+      debugPrint('Error purchasing product: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),

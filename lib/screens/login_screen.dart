@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/azure_auth_service.dart';
@@ -40,9 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // Set user ID in inventory provider to trigger sync
       final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
       inventoryProvider.setUserId(userId);
-      print('👤 Login: Set userId in inventory provider: $userId');
+      debugPrint('👤 Login: Set userId in inventory provider: $userId');
 
-      print('✅ Sign in successful, navigating to home screen...');
+      debugPrint('✅ Sign in successful, navigating to home screen...');
 
       // Navigate directly to home screen - household setup was done during sign-up
       if (!mounted) return;
@@ -50,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     } catch (e) {
-      print('❌ Error navigating after authentication: $e');
+      debugPrint('❌ Error navigating after authentication: $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -67,8 +68,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    print('🔐 Starting sign in...');
-    print('Email: ${_emailController.text.trim()}');
+    debugPrint('🔐 Starting sign in...');
+    debugPrint('Email: ${_emailController.text.trim()}');
 
     final authService = Provider.of<AzureAuthService>(context, listen: false);
     final error = await authService.signInWithEmail(
@@ -76,13 +77,13 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text,
     );
 
-    print('Sign in result - Error: $error');
+    debugPrint('Sign in result - Error: $error');
 
     if (error == null) {
-      print('✅ Sign in successful, navigating...');
+      debugPrint('✅ Sign in successful, navigating...');
       await _navigateAfterAuthentication();
     } else if (error == 'NO_USER_FOUND') {
-      print('⚠️  User not found, showing sign up message');
+      debugPrint('⚠️  User not found, showing sign up message');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -103,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } else {
-      print('❌ Sign in failed: $error');
+      debugPrint('❌ Sign in failed: $error');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(

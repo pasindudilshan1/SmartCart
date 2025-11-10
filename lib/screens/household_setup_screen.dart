@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/azure_auth_service.dart';
@@ -198,11 +199,11 @@ class _HouseholdSetupScreenState extends State<HouseholdSetupScreen> {
     });
 
     try {
-      print('💾 Saving household profile...');
-      print('User ID: $userId');
-      print('Member count: $_memberCount');
-      print('Calories: $calories');
-      print('Names: $names');
+      debugPrint('💾 Saving household profile...');
+      debugPrint('User ID: $userId');
+      debugPrint('Member count: $_memberCount');
+      debugPrint('Calories: $calories');
+      debugPrint('Names: $names');
 
       // Create HouseholdMember objects
       final members = <HouseholdMember>[];
@@ -223,19 +224,19 @@ class _HouseholdSetupScreenState extends State<HouseholdSetupScreen> {
       }
 
       // Save to Azure Tables
-      print('☁️  Saving to Azure Tables...');
+      debugPrint('☁️  Saving to Azure Tables...');
       await _azureTableService.storeHouseholdProfile(userId, _memberCount);
-      print('✅ Azure profile saved');
+      debugPrint('✅ Azure profile saved');
 
       await _azureTableService.storeHouseholdMembers(
           userId, _ageGroups, calories, proteins, fats, carbs, fibers,
           names: names);
-      print('✅ Azure members saved');
+      debugPrint('✅ Azure members saved');
 
       // Mark household setup as complete (skip Hive for now - just use SharedPreferences)
-      print('📱 Marking setup complete...');
+      debugPrint('📱 Marking setup complete...');
       await _localStorageService.markHouseholdSetupComplete(userId);
-      print('✅ Setup marked complete');
+      debugPrint('✅ Setup marked complete');
 
       if (!mounted) return;
 
@@ -243,14 +244,14 @@ class _HouseholdSetupScreenState extends State<HouseholdSetupScreen> {
       final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
       inventoryProvider.setUserId(userId);
 
-      print('🏠 Navigating to Home Screen...');
+      debugPrint('🏠 Navigating to Home Screen...');
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
         (route) => false,
       );
     } catch (e, stackTrace) {
-      print('❌ Error saving household: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('❌ Error saving household: $e');
+      debugPrint('Stack trace: $stackTrace');
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
