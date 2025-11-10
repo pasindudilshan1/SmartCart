@@ -259,8 +259,39 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 if (selectedProduct != null) ...[
                   const SizedBox(height: 16),
                   const Text(
-                    'Nutrition Information',
+                    'Product Information',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  // Show weight per unit
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.scale, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Weight per unit: ${selectedProduct!['ActualWeight']?.toStringAsFixed(0) ?? '100'}${selectedProduct!['Category']?.toLowerCase() == 'beverages' ? 'ml' : 'g'}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Nutrition Information (per 100g/ml)',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildBaseNutritionDisplay(selectedProduct!),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Total Nutrition (based on quantity)',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
                   _buildNutritionDisplay(selectedProduct!, quantity),
@@ -366,7 +397,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Per ${totalActualWeight.toStringAsFixed(0)}${product['Category']?.toLowerCase() == 'beverages' ? 'ml' : 'g'}:',
+            'Total: ${totalActualWeight.toStringAsFixed(0)}${product['Category']?.toLowerCase() == 'beverages' ? 'ml' : 'g'}:',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
@@ -393,6 +424,56 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
           const SizedBox(height: 4),
           _buildNutritionItem('Fiber', '${totalFiber.toStringAsFixed(1)}g'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBaseNutritionDisplay(Map<String, dynamic> product) {
+    // Get base values (per 100g/ml)
+    final baseCalories = product['Calories']?.toDouble() ?? 0.0;
+    final baseProtein = product['Protein']?.toDouble() ?? 0.0;
+    final baseFat = product['Fat']?.toDouble() ?? 0.0;
+    final baseCarbs = product['Carbs']?.toDouble() ?? 0.0;
+    final baseFiber = product['Fiber']?.toDouble() ?? 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Per 100g/ml:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildNutritionItem('Calories', baseCalories.toStringAsFixed(0)),
+              ),
+              Expanded(
+                child: _buildNutritionItem('Protein', '${baseProtein.toStringAsFixed(1)}g'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: _buildNutritionItem('Fat', '${baseFat.toStringAsFixed(1)}g'),
+              ),
+              Expanded(
+                child: _buildNutritionItem('Carbs', '${baseCarbs.toStringAsFixed(1)}g'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          _buildNutritionItem('Fiber', '${baseFiber.toStringAsFixed(1)}g'),
         ],
       ),
     );
