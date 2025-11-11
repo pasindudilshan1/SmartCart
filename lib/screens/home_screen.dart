@@ -1,9 +1,8 @@
 // Copilot Task: Home Screen - Main Navigation Hub
-// Bottom navigation with tabs for Inventory, Scanner, Nutrition, and Shopping List
+// Bottom navigation with tabs for Inventory, Nutrition, and Shopping List
 
 import 'package:flutter/material.dart';
 import 'inventory_screen.dart';
-import 'scanner_screen.dart';
 import 'nutrition_screen.dart';
 import 'shopping_list_screen.dart';
 import 'household_management_screen.dart';
@@ -20,7 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     const InventoryScreen(),
-    const ScannerScreen(),
     const NutritionScreen(),
     const ShoppingListScreen(),
   ];
@@ -55,11 +53,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.inventory_2_outlined),
             selectedIcon: Icon(Icons.inventory_2),
             label: 'Inventory',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner_outlined),
-            selectedIcon: Icon(Icons.qr_code_scanner),
-            label: 'Scanner',
           ),
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),

@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/inventory_provider.dart';
+import '../providers/household_nutrition_alerts_provider.dart';
+import '../providers/nutrition_provider.dart';
 import '../models/product.dart';
 import '../services/azure_table_service.dart';
 import 'product_detail_screen.dart';
 import 'initial_inventory_setup_screen.dart';
+import 'scanner_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -29,6 +32,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
     // Sync with Azure when screen loads to ensure we have latest products
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InventoryProvider>().syncFromCloud();
+      // Load household nutrition for alerts
+      final alertsProvider = context.read<HouseholdNutritionAlertsProvider>();
+      final nutritionProvider = context.read<NutritionProvider>();
+      alertsProvider.loadHouseholdNutrition(nutritionProvider);
     });
   }
 
@@ -54,6 +61,67 @@ class _InventoryScreenState extends State<InventoryScreen> {
               )
             : const Text('Inventory'),
         actions: [
+          Consumer2<HouseholdNutritionAlertsProvider, InventoryProvider>(
+            builder: (context, alertsProvider, inventoryProvider, child) {
+              final inventoryTotals = inventoryProvider.getTotalInventoryNutrition();
+              final alerts = alertsProvider.calculateAlerts(inventoryTotals);
+              final hasAlerts = alerts.isNotEmpty;
+
+              return IconButton(
+                tooltip: alertsProvider.isLoading
+                    ? 'Loading household nutrition...'
+                    : hasAlerts
+                        ? 'View nutrition alerts'
+                        : 'No nutrition alerts',
+                onPressed: () {
+                  if (alertsProvider.isLoading) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Still loading household nutrition data...')),
+                    );
+                    return;
+                  }
+
+                  if (alerts.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No household nutrition alerts right now.')),
+                    );
+                    return;
+                  }
+
+                  _showNutritionAlertsSheet(alerts);
+                },
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(hasAlerts ? Icons.notifications : Icons.notifications_none),
+                    if (alertsProvider.isLoading)
+                      const Positioned(
+                        right: -2,
+                        top: -2,
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    if (!alertsProvider.isLoading && hasAlerts)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
@@ -109,8 +177,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Close dialog
-              // Navigate to scanner tab
-              DefaultTabController.of(context).animateTo(1);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ScannerScreen()),
+              );
             },
             child: const Text('SCAN'),
           ),
@@ -263,25 +332,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  // Show weight per unit
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.scale, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Weight per unit: ${selectedProduct!['ActualWeight']?.toStringAsFixed(0) ?? '100'}${selectedProduct!['Category']?.toLowerCase() == 'beverages' ? 'ml' : 'g'}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   const Text(
                     'Nutrition Information (per 100g/ml)',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
@@ -341,7 +391,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         name: selectedProduct!['ProductName'] ?? 'Unknown Product',
                         expiryDate: selectedDate,
                         quantity: quantity,
-                        unit: selectedProduct!['Unit'] ?? 'pcs',
+                        unit: selectedProduct!['Unit'] ??
+                            (selectedCategory.toLowerCase() == 'beverages' ? 'ml' : 'g'),
                         category: selectedCategory,
                         actualWeight: selectedProduct!['ActualWeight']?.toDouble(),
                         purchaseDate: DateTime.now(),
@@ -446,9 +497,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Per 100g/ml:',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          Text(
+            'Per 100${product['Category']?.toLowerCase() == 'beverages' ? 'ml' : 'g'}:',
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Row(
@@ -871,6 +922,63 @@ class _InventoryScreenState extends State<InventoryScreen> {
         );
       }
     }
+  }
+
+  void _showNutritionAlertsSheet(List<NutritionAlert> alerts) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_active, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Household Nutrition Alerts',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...alerts.map(_buildAlertTile),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAlertTile(NutritionAlert alert) {
+    final color = alert.isCritical ? Colors.red : Colors.orange;
+    final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
+
+    return Card(
+      color: color.withOpacity(0.08),
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          alert.headline,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(alert.description),
+      ),
+    );
   }
 
   @override

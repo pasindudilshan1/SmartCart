@@ -1,12 +1,14 @@
 // Shopping List Screen with Manual and Scan tabs
 
-import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/inventory_provider.dart';
 import '../models/product.dart';
+import '../providers/inventory_provider.dart';
+import '../providers/nutrition_provider.dart';
+import '../providers/household_nutrition_alerts_provider.dart';
 import '../services/azure_table_service.dart';
 import '../services/local_storage_service.dart';
+import 'scanner_screen.dart';
 
 class ShoppingListScreen extends StatefulWidget {
   const ShoppingListScreen({super.key});
@@ -14,6 +16,8 @@ class ShoppingListScreen extends StatefulWidget {
   @override
   State<ShoppingListScreen> createState() => _ShoppingListScreenState();
 }
+
+const double _nutritionAlertThreshold = 0.9;
 
 class _ShoppingListScreenState extends State<ShoppingListScreen>
     with SingleTickerProviderStateMixin {
@@ -31,6 +35,12 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
     _tabController = TabController(length: 2, vsync: this);
     _loadShoppingItems();
     _searchController.addListener(_filterShoppingItems);
+    // Load household nutrition for alerts using the provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final alertsProvider = context.read<HouseholdNutritionAlertsProvider>();
+      final nutritionProvider = context.read<NutritionProvider>();
+      alertsProvider.loadHouseholdNutrition(nutritionProvider);
+    });
   }
 
   void _filterShoppingItems() {
@@ -68,11 +78,82 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
     }
   }
 
+  void _showNutritionAlertsSheet(List<NutritionAlert> alerts) {
+    final alertsProvider = context.read<HouseholdNutritionAlertsProvider>();
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_active, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Household Nutrition Alerts',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                if (alertsProvider.usingFallbackGoals &&
+                    alertsProvider.nutritionGoalSourceNote != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    alertsProvider.nutritionGoalSourceNote!,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                ...alerts.map(_buildAlertTile),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAlertTile(NutritionAlert alert) {
+    final color = alert.isCritical ? Colors.red : Colors.orange;
+    final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
+
+    return Card(
+      color: color.withOpacity(0.08),
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          alert.headline,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(alert.description),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
     final hintColor = isDark ? Colors.white70 : Colors.black54;
+    final inventoryProvider = context.watch<InventoryProvider>();
+    final alertsProvider = context.watch<HouseholdNutritionAlertsProvider>();
+    final inventoryTotals = inventoryProvider.getTotalInventoryNutrition();
+    final alerts = alertsProvider.calculateAlerts(inventoryTotals);
+    final hasAlerts = alerts.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -89,6 +170,59 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
               )
             : const Text('Shopping List'),
         actions: [
+          IconButton(
+            tooltip: alertsProvider.isLoading
+                ? 'Loading household nutrition...'
+                : hasAlerts
+                    ? 'View nutrition alerts'
+                    : 'No nutrition alerts',
+            onPressed: () {
+              if (alertsProvider.isLoading) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Still loading household nutrition data...')),
+                );
+                return;
+              }
+
+              if (alerts.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('No household nutrition alerts right now.')),
+                );
+                return;
+              }
+
+              _showNutritionAlertsSheet(alerts);
+            },
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(hasAlerts ? Icons.notifications : Icons.notifications_none),
+                if (alertsProvider.isLoading)
+                  const Positioned(
+                    right: -2,
+                    top: -2,
+                    child: SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                if (!alertsProvider.isLoading && hasAlerts)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
@@ -241,6 +375,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
   }
 
   void _showProductDetails(Map<String, dynamic> item) {
+    final alertsProvider = context.read<HouseholdNutritionAlertsProvider>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -250,6 +385,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
       builder: (context) => _ProductDetailsSheet(
         item: item,
         onPurchase: (quantity) => _purchaseProduct(item, quantity),
+        householdMonthlyCalories: alertsProvider.monthlyCaloriesGoal,
+        householdMonthlyProtein: alertsProvider.monthlyProteinGoal,
+        householdMonthlyCarbs: alertsProvider.monthlyCarbsGoal,
+        householdMonthlyFat: alertsProvider.monthlyFatGoal,
+        householdMonthlyFiber: alertsProvider.monthlyFiberGoal,
       ),
     );
   }
@@ -308,7 +448,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
         category: item['Category'] ?? 'Other',
         brand: item['Brand'],
         quantity: quantity,
-        unit: item['Unit'] ?? 'pcs',
+        unit: item['Unit'] ?? (category.toLowerCase() == 'beverages' ? 'ml' : 'g'),
         actualWeight: totalActualWeight > 0 ? totalActualWeight : null,
         price: item['Price']?.toDouble(),
         imageUrl: item['ImageUrl'],
@@ -375,13 +515,19 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
           Icon(Icons.qr_code_scanner, size: 100, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
-            'Scan Mode',
-            style: TextStyle(fontSize: 24, color: Colors.grey.shade600),
+            'Scan products to add them to your shopping list or inventory.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Coming soon...',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ScannerScreen()),
+              );
+            },
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Open Scanner'),
           ),
         ],
       ),
@@ -400,10 +546,20 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
 class _ProductDetailsSheet extends StatefulWidget {
   final Map<String, dynamic> item;
   final Function(double) onPurchase;
+  final double? householdMonthlyCalories;
+  final double? householdMonthlyProtein;
+  final double? householdMonthlyCarbs;
+  final double? householdMonthlyFat;
+  final double? householdMonthlyFiber;
 
   const _ProductDetailsSheet({
     required this.item,
     required this.onPurchase,
+    this.householdMonthlyCalories,
+    this.householdMonthlyProtein,
+    this.householdMonthlyCarbs,
+    this.householdMonthlyFat,
+    this.householdMonthlyFiber,
   });
 
   @override
@@ -412,6 +568,25 @@ class _ProductDetailsSheet extends StatefulWidget {
 
 class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
   final TextEditingController _quantityController = TextEditingController(text: '1');
+  double _purchaseQuantity = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantityController.addListener(_onQuantityChanged);
+  }
+
+  void _onQuantityChanged() {
+    setState(() {
+      _purchaseQuantity = double.tryParse(_quantityController.text) ?? 1.0;
+    });
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -424,7 +599,6 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
     final barcode = item['Barcode'] ?? '';
     final storageLocation = item['StorageLocation'] ?? '';
     final notes = item['Notes'] ?? '';
-    final actualWeight = item['ActualWeight']?.toDouble() ?? 0.0;
 
     // Nutrition info (per 100g)
     final calories = item['Calories']?.toDouble() ?? 0.0;
@@ -434,6 +608,64 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
     final fiber = item['Fiber']?.toDouble() ?? 0.0;
     final sugar = item['Sugar']?.toDouble() ?? 0.0;
     final sodium = item['Sodium']?.toDouble() ?? 0.0;
+
+    // Get existing inventory products
+    final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+    final existingProducts = inventoryProvider.getAllProducts().where((p) {
+      return p.name.toLowerCase() == productName.toLowerCase() ||
+          (p.barcode != null && p.barcode == barcode);
+    }).toList();
+
+    // Calculate current inventory totals
+    double currentInventoryQuantity = 0.0;
+    double currentInventoryCalories = 0.0;
+    double currentInventoryProtein = 0.0;
+    double currentInventoryFat = 0.0;
+    double currentInventoryCarbs = 0.0;
+    double currentInventoryFiber = 0.0;
+    for (final product in existingProducts) {
+      currentInventoryQuantity += product.quantity;
+      if (product.nutritionInfo != null) {
+        currentInventoryCalories += product.nutritionInfo!.calories;
+        currentInventoryProtein += product.nutritionInfo!.protein;
+        currentInventoryFat += product.nutritionInfo!.fat;
+        currentInventoryCarbs += product.nutritionInfo!.carbs;
+        currentInventoryFiber += product.nutritionInfo!.fiber;
+      }
+    }
+
+    final currentInventoryTotals = inventoryProvider.getTotalInventoryNutrition();
+
+    // Calculate new totals after purchase
+    final actualWeightPerUnit = item['ActualWeight']?.toDouble() ?? 100.0;
+    final totalActualWeight = actualWeightPerUnit * _purchaseQuantity;
+    final isBeverage = category.toLowerCase() == 'beverages';
+    final weightMultiplier = totalActualWeight / 100.0;
+    final additionalCalories = calories * weightMultiplier;
+    final additionalProtein = protein * weightMultiplier;
+    final additionalFat = fat * weightMultiplier;
+    final additionalCarbs = carbs * weightMultiplier;
+    final additionalFiber = fiber * weightMultiplier;
+
+    final projectedInventoryTotals = {
+      'calories': (currentInventoryTotals['calories'] ?? 0) + additionalCalories,
+      'protein': (currentInventoryTotals['protein'] ?? 0) + additionalProtein,
+      'carbs': (currentInventoryTotals['carbs'] ?? 0) + additionalCarbs,
+      'fat': (currentInventoryTotals['fat'] ?? 0) + additionalFat,
+      'fiber': (currentInventoryTotals['fiber'] ?? 0) + additionalFiber,
+    };
+
+    final householdAlerts = _gatherProjectedAlerts(
+      currentTotals: currentInventoryTotals,
+      projectedTotals: projectedInventoryTotals,
+    );
+
+    final newTotalQuantity = currentInventoryQuantity + _purchaseQuantity;
+    final newTotalCalories = currentInventoryCalories + additionalCalories;
+    final newTotalProtein = currentInventoryProtein + additionalProtein;
+    final newTotalFat = currentInventoryFat + additionalFat;
+    final newTotalCarbs = currentInventoryCarbs + additionalCarbs;
+    final newTotalFiber = currentInventoryFiber + additionalFiber;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.8,
@@ -488,17 +720,39 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
               ),
               const SizedBox(height: 24),
 
+              if (householdAlerts.isNotEmpty) ...[
+                Text(
+                  'Household Nutrition Alerts',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                ...householdAlerts.map(_buildHouseholdAlertCard),
+                const SizedBox(height: 16),
+              ],
+
+              // Current Inventory Info
+              if (existingProducts.isNotEmpty) ...[
+                _buildInfoSection('Current Inventory', [
+                  _buildInfoRow('Quantity in Inventory',
+                      '${currentInventoryQuantity.toStringAsFixed(1)} $unit'),
+                  _buildInfoRow(
+                      'Total Calories', '${currentInventoryCalories.toStringAsFixed(0)} kcal'),
+                ]),
+                const SizedBox(height: 16),
+                _buildInfoSection('Current Inventory Nutrition', [
+                  _buildInfoRow('Calories', '${currentInventoryCalories.toStringAsFixed(0)} kcal'),
+                  _buildInfoRow('Protein', '${currentInventoryProtein.toStringAsFixed(1)}g'),
+                  _buildInfoRow('Carbs', '${currentInventoryCarbs.toStringAsFixed(1)}g'),
+                  _buildInfoRow('Fat', '${currentInventoryFat.toStringAsFixed(1)}g'),
+                  if (currentInventoryFiber > 0)
+                    _buildInfoRow('Fiber', '${currentInventoryFiber.toStringAsFixed(1)}g'),
+                ]),
+              ],
+
               // Basic Info
               _buildInfoSection('Basic Information', [
                 _buildInfoRow('Category', category),
                 if (barcode.isNotEmpty) _buildInfoRow('Barcode', barcode),
-                if (actualWeight > 0)
-                  _buildInfoRow(
-                    category.toLowerCase() == 'beverages' ? 'Volume' : 'Actual Weight',
-                    category.toLowerCase() == 'beverages'
-                        ? '${actualWeight.toStringAsFixed(0)} ml'
-                        : '${actualWeight.toStringAsFixed(0)} g',
-                  ),
                 if (price > 0) _buildInfoRow('Price', '\$${price.toStringAsFixed(2)}'),
                 if (storageLocation.isNotEmpty) _buildInfoRow('Storage', storageLocation),
               ]),
@@ -508,7 +762,7 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
               // Nutrition Info
               if (calories > 0)
                 _buildInfoSection(
-                    category.toLowerCase() == 'beverages'
+                    isBeverage
                         ? 'Nutrition Information (per 100ml)'
                         : 'Nutrition Information (per 100g)',
                     [
@@ -544,10 +798,40 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   border: const OutlineInputBorder(),
-                  labelText: 'Quantity ($unit)',
+                  labelText: 'Quantity (${isBeverage ? 'ml' : 'g'})',
                   suffixIcon: const Icon(Icons.shopping_cart),
                 ),
               ),
+
+              const SizedBox(height: 16),
+
+              // Purchase Nutrition
+              if (calories > 0)
+                _buildInfoSection('Purchase Nutrition', [
+                  _buildInfoRow('Calories', '${additionalCalories.toStringAsFixed(0)} kcal'),
+                  _buildInfoRow('Protein', '${additionalProtein.toStringAsFixed(1)}g'),
+                  _buildInfoRow('Carbs', '${additionalCarbs.toStringAsFixed(1)}g'),
+                  _buildInfoRow('Fat', '${additionalFat.toStringAsFixed(1)}g'),
+                  if (additionalFiber > 0)
+                    _buildInfoRow('Fiber', '${additionalFiber.toStringAsFixed(1)}g'),
+                ]),
+
+              // Projected Totals
+              _buildInfoSection('After Purchase Totals', [
+                _buildInfoRow('New Total Quantity', '${newTotalQuantity.toStringAsFixed(1)} $unit'),
+                _buildInfoRow('New Total Calories', '${newTotalCalories.toStringAsFixed(0)} kcal'),
+                _buildInfoRow('New Total Protein', '${newTotalProtein.toStringAsFixed(1)}g'),
+                _buildInfoRow('New Total Carbs', '${newTotalCarbs.toStringAsFixed(1)}g'),
+                _buildInfoRow('New Total Fat', '${newTotalFat.toStringAsFixed(1)}g'),
+                if (newTotalFiber > 0)
+                  _buildInfoRow('New Total Fiber', '${newTotalFiber.toStringAsFixed(1)}g'),
+                if (currentInventoryCalories > 0)
+                  _buildInfoRow(
+                    'Increase',
+                    '+${(newTotalCalories - currentInventoryCalories).toStringAsFixed(0)} kcal (${((newTotalCalories / currentInventoryCalories - 1) * 100).toStringAsFixed(1)}%)',
+                  ),
+              ]),
+
               const SizedBox(height: 24),
 
               // Purchase Button
@@ -569,6 +853,151 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
           ),
         );
       },
+    );
+  }
+
+  void _purchaseItem() {
+    final quantity = double.tryParse(_quantityController.text);
+    if (quantity == null || quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid quantity')),
+      );
+      return;
+    }
+    widget.onPurchase(quantity);
+  }
+
+  List<NutritionAlert> _gatherProjectedAlerts({
+    required Map<String, double> currentTotals,
+    required Map<String, double> projectedTotals,
+  }) {
+    final alerts = <NutritionAlert>[];
+
+    alerts.addAll(_evaluateNutrient(
+      nutrient: 'Calories',
+      unit: 'kcal',
+      goal: widget.householdMonthlyCalories,
+      currentValue: currentTotals['calories'] ?? 0,
+      projectedValue: projectedTotals['calories'] ?? 0,
+    ));
+
+    alerts.addAll(_evaluateNutrient(
+      nutrient: 'Protein',
+      unit: 'g',
+      goal: widget.householdMonthlyProtein,
+      currentValue: currentTotals['protein'] ?? 0,
+      projectedValue: projectedTotals['protein'] ?? 0,
+    ));
+
+    alerts.addAll(_evaluateNutrient(
+      nutrient: 'Carbs',
+      unit: 'g',
+      goal: widget.householdMonthlyCarbs,
+      currentValue: currentTotals['carbs'] ?? 0,
+      projectedValue: projectedTotals['carbs'] ?? 0,
+    ));
+
+    alerts.addAll(_evaluateNutrient(
+      nutrient: 'Fat',
+      unit: 'g',
+      goal: widget.householdMonthlyFat,
+      currentValue: currentTotals['fat'] ?? 0,
+      projectedValue: projectedTotals['fat'] ?? 0,
+    ));
+
+    alerts.addAll(_evaluateNutrient(
+      nutrient: 'Fiber',
+      unit: 'g',
+      goal: widget.householdMonthlyFiber,
+      currentValue: currentTotals['fiber'] ?? 0,
+      projectedValue: projectedTotals['fiber'] ?? 0,
+    ));
+
+    return alerts;
+  }
+
+  List<NutritionAlert> _evaluateNutrient({
+    required String nutrient,
+    required String unit,
+    required double? goal,
+    required double currentValue,
+    required double projectedValue,
+  }) {
+    if (goal == null || goal <= 0) {
+      return const [];
+    }
+
+    final alerts = <NutritionAlert>[];
+    final currentRatio = currentValue / goal;
+    final projectedRatio = projectedValue / goal;
+
+    if (currentRatio >= _nutritionAlertThreshold) {
+      alerts.add(NutritionAlert(
+        nutrient: nutrient,
+        inventoryValue: currentValue,
+        goalValue: goal,
+        unit: unit,
+        triggeredByUpcomingPurchase: false,
+      ));
+    }
+
+    final bool crossesThreshold =
+        currentRatio < _nutritionAlertThreshold && projectedRatio >= _nutritionAlertThreshold;
+    final bool becomesCritical = currentRatio < 1.0 && projectedRatio >= 1.0;
+
+    if (projectedRatio >= _nutritionAlertThreshold && (crossesThreshold || becomesCritical)) {
+      alerts.add(NutritionAlert(
+        nutrient: nutrient,
+        inventoryValue: projectedValue,
+        goalValue: goal,
+        unit: unit,
+        triggeredByUpcomingPurchase: true,
+      ));
+    }
+
+    return alerts;
+  }
+
+  Widget _buildHouseholdAlertCard(NutritionAlert alert) {
+    final color = alert.isCritical ? Colors.red : Colors.orange;
+    final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
+    final label = alert.triggeredByUpcomingPurchase ? 'After purchase' : 'Current';
+
+    return Card(
+      color: color.withOpacity(0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    alert.headline,
+                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(alert.description),
+          ],
+        ),
+      ),
     );
   }
 
@@ -632,22 +1061,5 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
       default:
         return Colors.grey;
     }
-  }
-
-  void _purchaseItem() {
-    final quantity = double.tryParse(_quantityController.text);
-    if (quantity == null || quantity <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid quantity')),
-      );
-      return;
-    }
-    widget.onPurchase(quantity);
-  }
-
-  @override
-  void dispose() {
-    _quantityController.dispose();
-    super.dispose();
   }
 }

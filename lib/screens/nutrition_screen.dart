@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/nutrition_provider.dart';
 import '../providers/inventory_provider.dart';
+import '../providers/household_nutrition_alerts_provider.dart';
 import '../models/nutrition.dart';
 import 'household_nutrition_screen.dart';
 
@@ -17,11 +18,83 @@ class _NutritionScreenState extends State<NutritionScreen> {
   String _selectedChart = 'comparison';
 
   @override
+  void initState() {
+    super.initState();
+    // Load household nutrition for alerts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final alertsProvider = context.read<HouseholdNutritionAlertsProvider>();
+      final nutritionProvider = context.read<NutritionProvider>();
+      alertsProvider.loadHouseholdNutrition(nutritionProvider);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nutrition Tracker'),
         actions: [
+          Consumer2<HouseholdNutritionAlertsProvider, InventoryProvider>(
+            builder: (context, alertsProvider, inventoryProvider, child) {
+              final inventoryTotals = inventoryProvider.getTotalInventoryNutrition();
+              final alerts = alertsProvider.calculateAlerts(inventoryTotals);
+              final hasAlerts = alerts.isNotEmpty;
+
+              return IconButton(
+                tooltip: alertsProvider.isLoading
+                    ? 'Loading household nutrition...'
+                    : hasAlerts
+                        ? 'View nutrition alerts'
+                        : 'No nutrition alerts',
+                onPressed: () {
+                  if (alertsProvider.isLoading) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Still loading household nutrition data...')),
+                    );
+                    return;
+                  }
+
+                  if (alerts.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No household nutrition alerts right now.')),
+                    );
+                    return;
+                  }
+
+                  _showNutritionAlertsSheet(alerts);
+                },
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(hasAlerts ? Icons.notifications : Icons.notifications_none),
+                    if (alertsProvider.isLoading)
+                      const Positioned(
+                        right: -2,
+                        top: -2,
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    if (!alertsProvider.isLoading && hasAlerts)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.group),
             onPressed: () {
@@ -549,6 +622,63 @@ class _NutritionScreenState extends State<NutritionScreen> {
             child: const Text('Save'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showNutritionAlertsSheet(List<NutritionAlert> alerts) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_active, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Household Nutrition Alerts',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...alerts.map(_buildAlertTile),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAlertTile(NutritionAlert alert) {
+    final color = alert.isCritical ? Colors.red : Colors.orange;
+    final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
+
+    return Card(
+      color: color.withOpacity(0.08),
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          alert.headline,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(alert.description),
       ),
     );
   }

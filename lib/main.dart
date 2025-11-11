@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/nutrition_provider.dart';
+import 'providers/household_nutrition_alerts_provider.dart';
 import 'services/azure_auth_service.dart';
 import 'models/product.dart';
 import 'models/nutrition.dart';
@@ -63,6 +64,7 @@ class SmartCartApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AzureAuthService()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => NutritionProvider()),
+        ChangeNotifierProvider(create: (_) => HouseholdNutritionAlertsProvider()),
       ],
       child: MaterialApp(
         title: 'SmartCart',
