@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/inventory_provider.dart';
 import '../models/product.dart';
 import '../services/barcode_service.dart';
+import '../services/azure_table_service.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -170,31 +171,40 @@ class _ScannerScreenState extends State<ScannerScreen> {
         );
       }
 
-      // Try to fetch product from Open Food Facts API
-      final productData = await _barcodeService.getProductByBarcode(qrData);
+      // First, try to find the product in the shopping list by barcode
+      final azureService = AzureTableService();
+      final shoppingItem = await azureService.getShoppingListItemByBarcode(qrData);
 
-      if (productData != null && mounted) {
-        // Product found in database
-        final info = productData['product'] as Map<String, dynamic>;
-        final nutrition = productData['nutrition'] as Map<String, dynamic>?;
-
-        final product = Product(
-          id: _uuid.v4(),
-          name: info['name'] ?? 'Unknown Product',
-          barcode: info['barcode'],
-          category: info['category'] ?? 'Other',
-          brand: info['brand'],
-          imageUrl: info['imageUrl'],
-          quantity: 1,
-          unit: info['unit'] ?? 'pcs',
-          purchaseDate: DateTime.now(),
-          expiryDate: DateTime.now().add(const Duration(days: 7)), // Default 7 days
-        );
-
-        _showProductDialog(product, nutrition: nutrition);
+      if (shoppingItem != null && mounted) {
+        // Product found in shopping list
+        _showShoppingListProductDialog(shoppingItem);
       } else {
-        // Product not found - show manual entry with barcode
-        _showManualEntryDialog(barcode: qrData);
+        // Not found in shopping list, try Open Food Facts API
+        final productData = await _barcodeService.getProductByBarcode(qrData);
+
+        if (productData != null && mounted) {
+          // Product found in database
+          final info = productData['product'] as Map<String, dynamic>;
+          final nutrition = productData['nutrition'] as Map<String, dynamic>?;
+
+          final product = Product(
+            id: _uuid.v4(),
+            name: info['name'] ?? 'Unknown Product',
+            barcode: info['barcode'],
+            category: info['category'] ?? 'Other',
+            brand: info['brand'],
+            imageUrl: info['imageUrl'],
+            quantity: 1,
+            unit: info['unit'] ?? 'pcs',
+            purchaseDate: DateTime.now(),
+            expiryDate: DateTime.now().add(const Duration(days: 7)), // Default 7 days
+          );
+
+          _showProductDialog(product, nutrition: nutrition);
+        } else {
+          // Product not found anywhere - show manual entry with barcode
+          _showManualEntryDialog(barcode: qrData);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -486,6 +496,260 @@ class _ScannerScreenState extends State<ScannerScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showShoppingListProductDialog(Map<String, dynamic> shoppingItem) {
+    final quantityController = TextEditingController(text: '1');
+    double quantity = 1.0;
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              shoppingItem['ProductName'] ?? 'Unknown Product',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            if (shoppingItem['Brand'] != null &&
+                                shoppingItem['Brand'].toString().isNotEmpty)
+                              Text(
+                                shoppingItem['Brand'],
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Colors.grey[600],
+                                    ),
+                              ),
+                            Text(
+                              'Category: ${shoppingItem['Category'] ?? 'Other'}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: quantityController,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      setState(() {
+                        quantity = double.tryParse(value) ?? 1.0;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Expiry Date'),
+                    subtitle: Text(selectedDate.toString().split(' ')[0]),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (date != null) {
+                        setState(() => selectedDate = date);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Product Information',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Nutrition Information (per 100g/ml)',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildShoppingListNutritionDisplay(shoppingItem),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Total Nutrition (based on quantity)',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildShoppingListNutritionDisplay(shoppingItem, quantity: quantity),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          // Calculate nutrition based on shopping item
+                          NutritionInfo? nutritionInfo;
+                          if (shoppingItem['Calories'] != null ||
+                              shoppingItem['Protein'] != null ||
+                              shoppingItem['Fat'] != null ||
+                              shoppingItem['Carbs'] != null ||
+                              shoppingItem['Fiber'] != null) {
+                            // Get base values (per 100g/ml)
+                            final baseCalories = shoppingItem['Calories']?.toDouble() ?? 0.0;
+                            final baseProtein = shoppingItem['Protein']?.toDouble() ?? 0.0;
+                            final baseFat = shoppingItem['Fat']?.toDouble() ?? 0.0;
+                            final baseCarbs = shoppingItem['Carbs']?.toDouble() ?? 0.0;
+                            final baseFiber = shoppingItem['Fiber']?.toDouble() ?? 0.0;
+
+                            // Get actual weight per unit
+                            final actualWeightPerUnit =
+                                shoppingItem['ActualWeight']?.toDouble() ?? 100.0;
+                            final totalActualWeight = actualWeightPerUnit * quantity;
+                            final weightMultiplier = totalActualWeight / 100.0;
+
+                            nutritionInfo = NutritionInfo(
+                              calories: baseCalories * weightMultiplier,
+                              protein: baseProtein * weightMultiplier,
+                              fat: baseFat * weightMultiplier,
+                              carbs: baseCarbs * weightMultiplier,
+                              fiber: baseFiber * weightMultiplier,
+                            );
+                          }
+
+                          final product = Product(
+                            id: _uuid.v4(),
+                            name: shoppingItem['ProductName'] ?? 'Unknown Product',
+                            barcode: shoppingItem['Barcode'],
+                            category: shoppingItem['Category'] ?? 'Other',
+                            brand: shoppingItem['Brand'],
+                            quantity: quantity,
+                            unit: shoppingItem['Unit'] ??
+                                ((shoppingItem['Category']?.toString().toLowerCase() ?? '') ==
+                                        'beverages'
+                                    ? 'ml'
+                                    : 'g'),
+                            actualWeight: shoppingItem['ActualWeight']?.toDouble(),
+                            purchaseDate: DateTime.now(),
+                            expiryDate: selectedDate,
+                            nutritionInfo: nutritionInfo,
+                          );
+
+                          await context.read<InventoryProvider>().addProduct(product);
+                          if (context.mounted) {
+                            // Close the bottom sheet and navigate back to inventory tab
+                            Navigator.pop(context);
+                            // Navigate to inventory tab (tab 0)
+                            DefaultTabController.of(context).animateTo(0);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('${product.name} added to inventory')),
+                            );
+                          }
+                        },
+                        child: const Text('Add to Inventory'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShoppingListNutritionDisplay(Map<String, dynamic> item, {double quantity = 1.0}) {
+    final calories = item['Calories']?.toDouble() ?? 0.0;
+    final protein = item['Protein']?.toDouble() ?? 0.0;
+    final fat = item['Fat']?.toDouble() ?? 0.0;
+    final carbs = item['Carbs']?.toDouble() ?? 0.0;
+    final fiber = item['Fiber']?.toDouble() ?? 0.0;
+
+    // Get actual weight per unit
+    final actualWeightPerUnit = item['ActualWeight']?.toDouble() ?? 100.0;
+    final totalActualWeight = actualWeightPerUnit * quantity;
+    final weightMultiplier = totalActualWeight / 100.0;
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Calories', calories * weightMultiplier, 'kcal'),
+            ),
+            Expanded(
+              child: _buildNutritionItem('Protein', protein * weightMultiplier, 'g'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Fat', fat * weightMultiplier, 'g'),
+            ),
+            Expanded(
+              child: _buildNutritionItem('Carbs', carbs * weightMultiplier, 'g'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Fiber', fiber * weightMultiplier, 'g'),
+            ),
+            const Expanded(child: SizedBox()),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNutritionItem(String label, double value, String unit) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          Text(
+            '${value.toStringAsFixed(1)} $unit',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }

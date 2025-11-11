@@ -580,6 +580,34 @@ class AzureTableService {
     );
   }
 
+  /// Get shopping list item by barcode
+  Future<Map<String, dynamic>?> getShoppingListItemByBarcode(String barcode) async {
+    try {
+      print('🔍 Searching shopping list for barcode: $barcode');
+      final response = await _executeTableOperation(
+        'GET',
+        _shoppingListTable,
+        '()',
+        queryParams: {
+          '\u0024filter': "Barcode eq '$barcode'",
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final values = data['value'] as List;
+      if (values.isNotEmpty) {
+        print('✅ Found shopping list item for barcode $barcode');
+        return values.first as Map<String, dynamic>;
+      } else {
+        print('⚠️ No shopping list item found for barcode $barcode');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Error searching shopping list by barcode: $e');
+      return null;
+    }
+  }
+
   // ============ HOUSEHOLD MEMBER OPERATIONS ============
 
   /// Store household member in Households Table
