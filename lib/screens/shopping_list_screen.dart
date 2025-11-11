@@ -521,10 +521,14 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ScannerScreen()),
+            onPressed: () async {
+              final scannedItem = await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ScannerScreen(isFromShoppingList: true)),
               );
+
+              if (scannedItem != null && mounted) {
+                _showProductDetails(scannedItem);
+              }
             },
             icon: const Icon(Icons.qr_code_scanner),
             label: const Text('Open Scanner'),

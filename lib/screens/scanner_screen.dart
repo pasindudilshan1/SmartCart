@@ -12,7 +12,9 @@ import '../services/barcode_service.dart';
 import '../services/azure_table_service.dart';
 
 class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
+  final bool isFromShoppingList;
+
+  const ScannerScreen({super.key, this.isFromShoppingList = false});
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
@@ -45,7 +47,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan QR Code'),
+        title: Text(widget.isFromShoppingList ? 'Scan Shopping List Item' : 'Scan QR Code'),
         actions: [
           IconButton(
             icon: ValueListenableBuilder(
@@ -177,7 +179,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
       if (shoppingItem != null && mounted) {
         // Product found in shopping list
-        _showShoppingListProductDialog(shoppingItem);
+        if (widget.isFromShoppingList) {
+          // Return the scanned item to the shopping list screen
+          Navigator.of(context).pop(shoppingItem);
+        } else {
+          _showShoppingListProductDialog(shoppingItem);
+        }
       } else {
         // Not found in shopping list, try Open Food Facts API
         final productData = await _barcodeService.getProductByBarcode(qrData);
@@ -503,7 +510,21 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void _showShoppingListProductDialog(Map<String, dynamic> shoppingItem) {
     final quantityController = TextEditingController(text: '1');
     double quantity = 1.0;
+    String selectedCategory = shoppingItem['Category'] ?? 'Other';
     DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    final categories = [
+      'Fruits & Vegetables',
+      'Dairy',
+      'Meat & Poultry',
+      'Seafood',
+      'Grains & Bread',
+      'Pantry Staples',
+      'Snacks',
+      'Beverages',
+      'Frozen Foods',
+      'Other'
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -520,38 +541,64 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              shoppingItem['ProductName'] ?? 'Unknown Product',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            if (shoppingItem['Brand'] != null &&
-                                shoppingItem['Brand'].toString().isNotEmpty)
-                              Text(
-                                shoppingItem['Brand'],
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Colors.grey[600],
-                                    ),
-                              ),
-                            Text(
-                              'Category: ${shoppingItem['Category'] ?? 'Other'}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'Add Product from Shopping List',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 8),
+                  // Category Selection (pre-filled)
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: categories.map((category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          selectedCategory = value;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  // Product Name (pre-filled from scanned item)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                shoppingItem['ProductName'] ?? 'Unknown Product',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                              ),
+                              if (shoppingItem['Brand'] != null &&
+                                  shoppingItem['Brand'].toString().isNotEmpty)
+                                Text(
+                                  'Brand: ${shoppingItem['Brand']}',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.check_circle, color: Colors.green),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: quantityController,
                     decoration: const InputDecoration(
@@ -646,14 +693,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             id: _uuid.v4(),
                             name: shoppingItem['ProductName'] ?? 'Unknown Product',
                             barcode: shoppingItem['Barcode'],
-                            category: shoppingItem['Category'] ?? 'Other',
+                            category: selectedCategory,
                             brand: shoppingItem['Brand'],
                             quantity: quantity,
                             unit: shoppingItem['Unit'] ??
-                                ((shoppingItem['Category']?.toString().toLowerCase() ?? '') ==
-                                        'beverages'
-                                    ? 'ml'
-                                    : 'g'),
+                                (selectedCategory.toLowerCase() == 'beverages' ? 'ml' : 'g'),
                             actualWeight: shoppingItem['ActualWeight']?.toDouble(),
                             purchaseDate: DateTime.now(),
                             expiryDate: selectedDate,
