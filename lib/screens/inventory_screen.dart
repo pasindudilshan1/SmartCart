@@ -26,6 +26,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
 
+  bool _isLiquidCategory(String category) {
+    final cat = category.toLowerCase();
+    return cat == 'beverages' ||
+        cat.contains('milk') ||
+        cat.contains('juice') ||
+        cat.contains('drink') ||
+        cat.contains('beverage') ||
+        cat.contains('liquid');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -201,28 +211,91 @@ class _InventoryScreenState extends State<InventoryScreen> {
     String selectedCategory = 'Other';
     Map<String, dynamic>? selectedProduct;
     List<Map<String, dynamic>> shoppingListItems = [];
+    List<String> categories = [
+      'Fruits & Vegetables',
+      'Dairy',
+      'Meat & Poultry',
+      'Seafood',
+      'Grains & Bread',
+      'Pantry Staples',
+      'Snacks',
+      'Beverages',
+      'Frozen Foods',
+      'Other',
+    ]; // Default categories
     bool isLoadingProducts = false;
+    bool isLooseItem = false; // Checkbox for loose items
     DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
     final azureService = AzureTableService();
 
+    // Function to load categories from table
+    Future<void> loadCategories(bool looseItem) async {
+      if (!looseItem) {
+        categories = [
+          'Fruits & Vegetables',
+          'Dairy',
+          'Meat & Poultry',
+          'Seafood',
+          'Grains & Bread',
+          'Pantry Staples',
+          'Snacks',
+          'Beverages',
+          'Frozen Foods',
+          'Other',
+        ];
+        return;
+      }
+      try {
+        final allItems = await azureService.getAllLooseItems();
+        final uniqueCategories = allItems
+            .map((item) => item['category'] as String?)
+            .where((cat) => cat != null && cat.isNotEmpty)
+            .toSet()
+            .toList();
+        categories = uniqueCategories.cast<String>();
+        if (categories.isEmpty) {
+          categories = ['Other'];
+        }
+        // selectedCategory updated in caller
+      } catch (e) {
+        print('Error loading categories: $e');
+        categories = ['Other'];
+        selectedCategory = 'Other';
+      }
+    }
+
     // Function to load products for selected category
-    Future<void> loadProductsForCategory(String category) async {
+    Future<void> loadProductsForCategory(String category, bool looseItem) async {
       isLoadingProducts = true;
       try {
-        final allItems = await azureService.getAllShoppingListItems();
-        shoppingListItems = allItems.where((item) {
-          final itemCategory = item['Category'] ?? '';
-          return itemCategory.toLowerCase() == category.toLowerCase();
-        }).toList();
+        final allItems = looseItem
+            ? await azureService.getAllLooseItems()
+            : await azureService.getAllShoppingListItems();
+
+        if (looseItem) {
+          final allLooseItems = await azureService.getAllLooseItems();
+          final filteredItems =
+              allLooseItems.where((item) => item['main_category'] == 'Loose Items').toList();
+          shoppingListItems = filteredItems.where((item) {
+            final itemCategory = item['category'] ?? '';
+            return itemCategory.toLowerCase() == category.toLowerCase();
+          }).toList();
+        } else {
+          shoppingListItems = allItems.where((item) {
+            final itemCategory = item['Category'] ?? '';
+            return itemCategory.toLowerCase() == category.toLowerCase();
+          }).toList();
+        }
       } catch (e) {
-        print('Error loading shopping list items: $e');
+        print('Error loading ${looseItem ? 'loose' : 'shopping list'} items: $e');
         shoppingListItems = [];
       }
       isLoadingProducts = false;
     }
 
-    // Load initial products for default category
-    loadProductsForCategory(selectedCategory);
+    // Load initial categories and products
+    loadCategories(isLooseItem);
+    loadProductsForCategory(selectedCategory, isLooseItem);
 
     showDialog(
       context: context,
@@ -233,38 +306,59 @@ class _InventoryScreenState extends State<InventoryScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Category Selection
-                DropdownButtonFormField<String>(
-                  initialValue: selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Category *',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    'Fruits & Vegetables',
-                    'Dairy',
-                    'Meat & Poultry',
-                    'Seafood',
-                    'Grains & Bread',
-                    'Pantry Staples',
-                    'Snacks',
-                    'Beverages',
-                    'Frozen Foods',
-                    'Other',
-                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                  onChanged: (v) async {
-                    if (v != null) {
+                // Loose Items Checkbox
+                CheckboxListTile(
+                  title: const Text('Loose Items'),
+                  value: isLooseItem,
+                  onChanged: (value) async {
+                    if (value != null) {
                       setState(() {
-                        selectedCategory = v;
+                        isLooseItem = value;
                         selectedProduct = null; // Reset selected product
                         isLoadingProducts = true;
                       });
-                      await loadProductsForCategory(v);
+                      await loadCategories(value);
+                      setState(() {
+                        selectedCategory = categories.contains(selectedCategory)
+                            ? selectedCategory
+                            : (categories.isNotEmpty ? categories.first : 'Other');
+                      });
+                      await loadProductsForCategory(selectedCategory, value);
                       setState(() {
                         isLoadingProducts = false;
                       });
                     }
                   },
+                ),
+                const SizedBox(height: 12),
+                // Category Selection
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: DropdownButton<String>(
+                    key: ValueKey(categories.join(',')),
+                    value: selectedCategory,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items:
+                        categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (v) async {
+                      if (v != null) {
+                        setState(() {
+                          selectedCategory = v;
+                          selectedProduct = null; // Reset selected product
+                          isLoadingProducts = true;
+                        });
+                        await loadProductsForCategory(v, isLooseItem);
+                        setState(() {
+                          isLoadingProducts = false;
+                        });
+                      }
+                    },
+                  ),
                 ),
                 const SizedBox(height: 12),
                 // Product Name Selection
@@ -276,8 +370,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     hintText: isLoadingProducts ? 'Loading products...' : 'Select a product',
                   ),
                   items: shoppingListItems.map((item) {
-                    final productName = item['ProductName'] ?? 'Unknown Product';
-                    final brand = item['Brand'] ?? '';
+                    final productName = item['ProductName'] ??
+                        item['product'] ??
+                        item['name'] ??
+                        item['product_name'] ??
+                        item['item'] ??
+                        'Unknown Product';
+                    final brand = item['Brand'] ?? item['brand'] ?? '';
                     return DropdownMenuItem(
                       value: item,
                       child: Text(
@@ -332,9 +431,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Nutrition Information (per 100g/ml)',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  Text(
+                    isLooseItem
+                        ? (_isLiquidCategory(selectedCategory)
+                            ? 'Nutrition Information (per 100ml)'
+                            : 'Nutrition Information (per 100g)')
+                        : 'Nutrition Information (per 100g/ml)',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
                   _buildBaseNutritionDisplay(selectedProduct!),
@@ -359,21 +462,30 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ? () async {
                       // Calculate nutrition based on selected product
                       NutritionInfo? nutritionInfo;
-                      if (selectedProduct!['Calories'] != null ||
-                          selectedProduct!['Protein'] != null ||
-                          selectedProduct!['Fat'] != null ||
-                          selectedProduct!['Carbs'] != null ||
-                          selectedProduct!['Fiber'] != null) {
+                      if ((selectedProduct!['Calories'] ?? selectedProduct!['calories']) != null ||
+                          (selectedProduct!['Protein'] ?? selectedProduct!['protein']) != null ||
+                          (selectedProduct!['Fat'] ?? selectedProduct!['fat']) != null ||
+                          (selectedProduct!['Carbs'] ?? selectedProduct!['carbs']) != null ||
+                          (selectedProduct!['Fiber'] ?? selectedProduct!['fiber']) != null) {
                         // Get base values (per 100g/ml)
-                        final baseCalories = selectedProduct!['Calories']?.toDouble() ?? 0.0;
-                        final baseProtein = selectedProduct!['Protein']?.toDouble() ?? 0.0;
-                        final baseFat = selectedProduct!['Fat']?.toDouble() ?? 0.0;
-                        final baseCarbs = selectedProduct!['Carbs']?.toDouble() ?? 0.0;
-                        final baseFiber = selectedProduct!['Fiber']?.toDouble() ?? 0.0;
+                        final baseCalories =
+                            (selectedProduct!['Calories'] ?? selectedProduct!['calories'] ?? 0.0)
+                                .toDouble();
+                        final baseProtein =
+                            (selectedProduct!['Protein'] ?? selectedProduct!['protein'] ?? 0.0)
+                                .toDouble();
+                        final baseFat =
+                            (selectedProduct!['Fat'] ?? selectedProduct!['fat'] ?? 0.0).toDouble();
+                        final baseCarbs =
+                            (selectedProduct!['Carbs'] ?? selectedProduct!['carbs'] ?? 0.0)
+                                .toDouble();
+                        final baseFiber =
+                            (selectedProduct!['Fiber'] ?? selectedProduct!['fiber'] ?? 0.0)
+                                .toDouble();
 
                         // Get actual weight per unit
-                        final actualWeightPerUnit =
-                            selectedProduct!['ActualWeight']?.toDouble() ?? 100.0;
+                        final actualWeightPerUnit = selectedProduct!['ActualWeight']?.toDouble() ??
+                            (isLooseItem ? 1.0 : 100.0);
                         final totalActualWeight = actualWeightPerUnit * quantity;
                         final weightMultiplier = totalActualWeight / 100.0;
 
@@ -388,17 +500,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
                       final product = Product(
                         id: const Uuid().v4(),
-                        name: selectedProduct!['ProductName'] ?? 'Unknown Product',
+                        name: selectedProduct!['ProductName'] ??
+                            selectedProduct!['product'] ??
+                            selectedProduct!['name'] ??
+                            selectedProduct!['product_name'] ??
+                            selectedProduct!['item'] ??
+                            'Unknown Product',
                         expiryDate: selectedDate,
                         quantity: quantity,
                         unit: selectedProduct!['Unit'] ??
-                            (selectedCategory.toLowerCase() == 'beverages' ? 'ml' : 'g'),
+                            selectedProduct!['unit'] ??
+                            (_isLiquidCategory(selectedCategory) ? 'ml' : 'g'),
                         category: selectedCategory,
-                        actualWeight: selectedProduct!['ActualWeight']?.toDouble(),
+                        actualWeight: selectedProduct!['ActualWeight'] ??
+                            selectedProduct!['actualWeight']?.toDouble() ??
+                            (isLooseItem ? 1.0 : null),
                         purchaseDate: DateTime.now(),
                         nutritionInfo: nutritionInfo,
-                        brand: selectedProduct!['Brand'],
-                        barcode: selectedProduct!['Barcode'],
+                        brand: selectedProduct!['Brand'] ?? selectedProduct!['brand'],
+                        barcode: selectedProduct!['Barcode'] ?? selectedProduct!['barcode'],
                       );
 
                       await context.read<InventoryProvider>().addProduct(product);
@@ -420,14 +540,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Widget _buildNutritionDisplay(Map<String, dynamic> product, double quantity) {
     // Get base values (per 100g/ml)
-    final baseCalories = product['Calories']?.toDouble() ?? 0.0;
-    final baseProtein = product['Protein']?.toDouble() ?? 0.0;
-    final baseFat = product['Fat']?.toDouble() ?? 0.0;
-    final baseCarbs = product['Carbs']?.toDouble() ?? 0.0;
-    final baseFiber = product['Fiber']?.toDouble() ?? 0.0;
+    final baseCalories = (product['Calories'] ?? product['calories'] ?? 0.0).toDouble();
+    final baseProtein = (product['Protein'] ?? product['protein'] ?? 0.0).toDouble();
+    final baseFat = (product['Fat'] ?? product['fat'] ?? 0.0).toDouble();
+    final baseCarbs = (product['Carbs'] ?? product['carbs'] ?? 0.0).toDouble();
+    final baseFiber = (product['Fiber'] ?? product['fiber'] ?? 0.0).toDouble();
 
     // Get actual weight per unit
-    final actualWeightPerUnit = product['ActualWeight']?.toDouble() ?? 100.0;
+    final actualWeightPerUnit = (product['ActualWeight'] ??
+            product['actualWeight'] ??
+            ((product['main_category'] == 'Loose Items') ? 1.0 : 100.0))
+        .toDouble();
     final totalActualWeight = actualWeightPerUnit * quantity;
     final weightMultiplier = totalActualWeight / 100.0;
 
@@ -482,11 +605,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Widget _buildBaseNutritionDisplay(Map<String, dynamic> product) {
     // Get base values (per 100g/ml)
-    final baseCalories = product['Calories']?.toDouble() ?? 0.0;
-    final baseProtein = product['Protein']?.toDouble() ?? 0.0;
-    final baseFat = product['Fat']?.toDouble() ?? 0.0;
-    final baseCarbs = product['Carbs']?.toDouble() ?? 0.0;
-    final baseFiber = product['Fiber']?.toDouble() ?? 0.0;
+    final baseCalories = (product['Calories'] ?? product['calories'] ?? 0.0).toDouble();
+    final baseProtein = (product['Protein'] ?? product['protein'] ?? 0.0).toDouble();
+    final baseFat = (product['Fat'] ?? product['fat'] ?? 0.0).toDouble();
+    final baseCarbs = (product['Carbs'] ?? product['carbs'] ?? 0.0).toDouble();
+    final baseFiber = (product['Fiber'] ?? product['fiber'] ?? 0.0).toDouble();
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -498,7 +621,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Per 100${product['Category']?.toLowerCase() == 'beverages' ? 'ml' : 'g'}:',
+            'Per 100${_isLiquidCategory(product['Category'] ?? product['category'] ?? '') ? 'ml' : 'g'}:',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),

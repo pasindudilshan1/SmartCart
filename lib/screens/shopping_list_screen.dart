@@ -28,6 +28,17 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
   List<Map<String, dynamic>> _filteredShoppingItems = [];
   bool _isLoading = false;
   bool _isSearching = false;
+  bool _isLooseItemsMode = false;
+
+  bool _isLiquidCategory(String category) {
+    final cat = category.toLowerCase();
+    return cat == 'beverages' ||
+        cat.contains('milk') ||
+        cat.contains('juice') ||
+        cat.contains('drink') ||
+        cat.contains('beverage') ||
+        cat.contains('liquid');
+  }
 
   @override
   void initState() {
@@ -66,7 +77,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
   Future<void> _loadShoppingItems() async {
     setState(() => _isLoading = true);
     try {
-      final items = await _azureService.getAllShoppingListItems();
+      final items = _isLooseItemsMode
+          ? (await _azureService.getAllLooseItems())
+              .where((item) => item['main_category'] == 'Loose Items')
+              .toList()
+          : await _azureService.getAllShoppingListItems();
       setState(() {
         _shoppingItems = items;
         _filteredShoppingItems = items;
@@ -266,7 +281,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
             Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
-              'No items in shopping list',
+              _isLooseItemsMode ? 'No loose items available' : 'No items in shopping list',
               style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 8),
@@ -301,24 +316,74 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
                 ],
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _filteredShoppingItems.length,
-              itemBuilder: (context, index) {
-                final item = _filteredShoppingItems[index];
-                return _buildShoppingItemCard(item);
-              },
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Text('Loose Items'),
+                      const Spacer(),
+                      Switch(
+                        value: _isLooseItemsMode,
+                        onChanged: (value) {
+                          setState(() {
+                            _isLooseItemsMode = value;
+                          });
+                          _loadShoppingItems();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _buildGroupedShoppingList(),
+                ),
+              ],
             ),
     );
   }
 
+  Widget _buildGroupedShoppingList() {
+    // Group items by category
+    final groupedItems = <String, List<Map<String, dynamic>>>{};
+    for (final item in _filteredShoppingItems) {
+      final category = item['Category'] ?? item['category'] ?? 'Other';
+      groupedItems.putIfAbsent(category, () => []).add(item);
+    }
+
+    final categories = groupedItems.keys.toList()..sort();
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final category = categories[index];
+        final items = groupedItems[category]!;
+        return ExpansionTile(
+          title: Text(
+            category,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text('${items.length} items'),
+          children: items.map((item) => _buildShoppingItemCard(item)).toList(),
+        );
+      },
+    );
+  }
+
   Widget _buildShoppingItemCard(Map<String, dynamic> item) {
-    final productName = item['ProductName'] ?? 'Unknown Product';
-    final category = item['Category'] ?? 'Other';
-    final brand = item['Brand'] ?? '';
-    final price = item['Price']?.toDouble() ?? 0.0;
-    final quantity = item['Quantity']?.toDouble() ?? 1.0;
-    final unit = item['Unit'] ?? 'pcs';
+    final productName = item['ProductName'] ??
+        item['product'] ??
+        item['name'] ??
+        item['product_name'] ??
+        item['item'] ??
+        'Unknown Product';
+    final category = item['Category'] ?? item['category'] ?? 'Other';
+    final brand = item['Brand'] ?? item['brand'] ?? '';
+    final price = (item['Price'] ?? item['price'] ?? 0.0).toDouble();
+    final quantity = (item['Quantity'] ?? item['quantity'] ?? 1.0).toDouble();
+    final unit = item['Unit'] ?? item['unit'] ?? 'pcs';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -407,23 +472,25 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
       }
 
       // Get base nutrition values (per 100g or 100ml from table)
-      final baseCalories = item['Calories']?.toDouble() ?? 0.0;
-      final baseProtein = item['Protein']?.toDouble() ?? 0.0;
-      final baseCarbs = item['Carbs']?.toDouble() ?? 0.0;
-      final baseFat = item['Fat']?.toDouble() ?? 0.0;
-      final baseFiber = item['Fiber']?.toDouble() ?? 0.0;
-      final baseSugar = item['Sugar']?.toDouble() ?? 0.0;
-      final baseSodium = item['Sodium']?.toDouble() ?? 0.0;
+      final baseCalories = (item['Calories'] ?? item['calories'] ?? 0.0).toDouble();
+      final baseProtein = (item['Protein'] ?? item['protein'] ?? 0.0).toDouble();
+      final baseCarbs = (item['Carbs'] ?? item['carbs'] ?? 0.0).toDouble();
+      final baseFat = (item['Fat'] ?? item['fat'] ?? 0.0).toDouble();
+      final baseFiber = (item['Fiber'] ?? item['fiber'] ?? 0.0).toDouble();
+      final baseSugar = (item['Sugar'] ?? item['sugar'] ?? 0.0).toDouble();
+      final baseSodium = (item['Sodium'] ?? item['sodium'] ?? 0.0).toDouble();
 
       // Get category to determine if it's a beverage
-      final category = item['Category'] ?? 'Other';
-      final isBeverage = category.toLowerCase() == 'beverages';
+      final category = item['Category'] ?? item['category'] ?? 'Other';
+      final isBeverage = _isLiquidCategory(category);
 
       // Calculate actual weight/volume purchased
       // For Beverages: ActualWeight in table is stored in ml (per unit)
       // For Others: ActualWeight in table is stored in grams (per unit)
+      final isLooseItem = item['main_category'] == 'Loose Items';
       final actualWeightPerUnit =
-          item['ActualWeight']?.toDouble() ?? 0.0; // in grams or ml per unit
+          (item['ActualWeight'] ?? item['actualWeight'] ?? (isLooseItem ? 1.0 : 100.0))
+              .toDouble(); // in grams or ml per unit
       final totalActualWeight =
           actualWeightPerUnit * quantity; // total = weight per unit × user quantity
 
@@ -443,16 +510,21 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
       // Create product from shopping item
       final product = Product(
         id: 'prod_${DateTime.now().millisecondsSinceEpoch}',
-        name: item['ProductName'] ?? 'Unknown Product',
-        barcode: item['Barcode'],
-        category: item['Category'] ?? 'Other',
-        brand: item['Brand'],
+        name: item['ProductName'] ??
+            item['product'] ??
+            item['name'] ??
+            item['product_name'] ??
+            item['item'] ??
+            'Unknown Product',
+        barcode: item['Barcode'] ?? item['barcode'],
+        category: category,
+        brand: item['Brand'] ?? item['brand'],
         quantity: quantity,
-        unit: item['Unit'] ?? (category.toLowerCase() == 'beverages' ? 'ml' : 'g'),
+        unit: item['Unit'] ?? item['unit'] ?? (isBeverage ? 'ml' : 'g'),
         actualWeight: totalActualWeight > 0 ? totalActualWeight : null,
-        price: item['Price']?.toDouble(),
-        imageUrl: item['ImageUrl'],
-        storageLocation: item['StorageLocation'],
+        price: (item['Price'] ?? item['price'])?.toDouble(),
+        imageUrl: item['ImageUrl'] ?? item['imageUrl'],
+        storageLocation: item['StorageLocation'] ?? item['storageLocation'],
         purchaseDate: DateTime.now(),
         dateAdded: DateTime.now(),
         nutritionInfo: baseCalories > 0
@@ -574,6 +646,16 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
   final TextEditingController _quantityController = TextEditingController(text: '1');
   double _purchaseQuantity = 1.0;
 
+  bool _isLiquidCategory(String category) {
+    final cat = category.toLowerCase();
+    return cat == 'beverages' ||
+        cat.contains('milk') ||
+        cat.contains('juice') ||
+        cat.contains('drink') ||
+        cat.contains('beverage') ||
+        cat.contains('liquid');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -595,23 +677,28 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
-    final productName = item['ProductName'] ?? 'Unknown Product';
-    final category = item['Category'] ?? 'Other';
-    final brand = item['Brand'] ?? '';
-    final price = item['Price']?.toDouble() ?? 0.0;
-    final unit = item['Unit'] ?? 'pcs';
-    final barcode = item['Barcode'] ?? '';
-    final storageLocation = item['StorageLocation'] ?? '';
-    final notes = item['Notes'] ?? '';
+    final productName = item['ProductName'] ??
+        item['product'] ??
+        item['name'] ??
+        item['product_name'] ??
+        item['item'] ??
+        'Unknown Product';
+    final category = item['Category'] ?? item['category'] ?? 'Other';
+    final brand = item['Brand'] ?? item['brand'] ?? '';
+    final price = (item['Price'] ?? item['price'] ?? 0.0).toDouble();
+    final unit = item['Unit'] ?? item['unit'] ?? (_isLiquidCategory(category) ? 'ml' : 'g');
+    final barcode = item['Barcode'] ?? item['barcode'] ?? '';
+    final storageLocation = item['StorageLocation'] ?? item['storageLocation'] ?? '';
+    final notes = item['Notes'] ?? item['notes'] ?? '';
 
     // Nutrition info (per 100g)
-    final calories = item['Calories']?.toDouble() ?? 0.0;
-    final protein = item['Protein']?.toDouble() ?? 0.0;
-    final carbs = item['Carbs']?.toDouble() ?? 0.0;
-    final fat = item['Fat']?.toDouble() ?? 0.0;
-    final fiber = item['Fiber']?.toDouble() ?? 0.0;
-    final sugar = item['Sugar']?.toDouble() ?? 0.0;
-    final sodium = item['Sodium']?.toDouble() ?? 0.0;
+    final calories = (item['Calories'] ?? item['calories'] ?? 0.0).toDouble();
+    final protein = (item['Protein'] ?? item['protein'] ?? 0.0).toDouble();
+    final carbs = (item['Carbs'] ?? item['carbs'] ?? 0.0).toDouble();
+    final fat = (item['Fat'] ?? item['fat'] ?? 0.0).toDouble();
+    final fiber = (item['Fiber'] ?? item['fiber'] ?? 0.0).toDouble();
+    final sugar = (item['Sugar'] ?? item['sugar'] ?? 0.0).toDouble();
+    final sodium = (item['Sodium'] ?? item['sodium'] ?? 0.0).toDouble();
 
     // Get existing inventory products
     final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
@@ -641,7 +728,8 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
     final currentInventoryTotals = inventoryProvider.getTotalInventoryNutrition();
 
     // Calculate new totals after purchase
-    final actualWeightPerUnit = item['ActualWeight']?.toDouble() ?? 100.0;
+    final isLooseItem = item['main_category'] == 'Loose Items';
+    final actualWeightPerUnit = item['ActualWeight']?.toDouble() ?? (isLooseItem ? 1.0 : 100.0);
     final totalActualWeight = actualWeightPerUnit * _purchaseQuantity;
     final isBeverage = category.toLowerCase() == 'beverages';
     final weightMultiplier = totalActualWeight / 100.0;

@@ -80,32 +80,26 @@ class _ScannerScreenState extends State<ScannerScreen> {
             },
           ),
           _buildScannerOverlay(),
-          Positioned(
+          const Positioned(
             bottom: 20,
             left: 20,
             right: 20,
             child: Card(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'Scan a product QR code',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       'Position the QR code within the frame',
                       style: TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: _showManualEntryDialog,
-                      icon: const Icon(Icons.keyboard),
-                      label: const Text('Enter Manually'),
                     ),
                   ],
                 ),
@@ -209,8 +203,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
           _showProductDialog(product, nutrition: nutrition);
         } else {
-          // Product not found anywhere - show manual entry with barcode
-          _showManualEntryDialog(barcode: qrData);
+          // Product not found anywhere
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Product not found')),
+            );
+          }
         }
       }
     } catch (e) {
@@ -218,7 +216,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error looking up product: $e')),
         );
-        _showManualEntryDialog(barcode: qrData);
       }
     }
   }
@@ -794,216 +791,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showManualEntryDialog({String? barcode}) {
-    final nameController = TextEditingController();
-    final quantityController = TextEditingController(text: '1');
-    final categoryController = TextEditingController(text: 'Other');
-    final caloriesController = TextEditingController();
-    final proteinController = TextEditingController();
-    final fatController = TextEditingController();
-    final carbsController = TextEditingController();
-    final fiberController = TextEditingController();
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Add Product Manually'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (barcode != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      'Barcode: $barcode\n(Not found in database)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Product Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: categoryController.text,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    'Fruits & Vegetables',
-                    'Dairy',
-                    'Meat & Poultry',
-                    'Seafood',
-                    'Grains & Bread',
-                    'Pantry Staples',
-                    'Snacks',
-                    'Beverages',
-                    'Frozen Foods',
-                    'Other',
-                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                  onChanged: (v) {
-                    if (v != null) categoryController.text = v;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: quantityController,
-                  decoration: const InputDecoration(
-                    labelText: 'Quantity',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Expiry Date'),
-                  subtitle: Text(selectedDate.toString().split(' ')[0]),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null) {
-                      setState(() => selectedDate = date);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Nutrition Information (per 100g)',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: caloriesController,
-                        decoration: const InputDecoration(
-                          labelText: 'Calories',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: proteinController,
-                        decoration: const InputDecoration(
-                          labelText: 'Protein (g)',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: fatController,
-                        decoration: const InputDecoration(
-                          labelText: 'Fat (g)',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: carbsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Carbs (g)',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: fiberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Fiber (g)',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.isNotEmpty) {
-                  // Create nutrition info if any fields are filled
-                  NutritionInfo? nutritionInfo;
-                  if (caloriesController.text.isNotEmpty ||
-                      proteinController.text.isNotEmpty ||
-                      fatController.text.isNotEmpty ||
-                      carbsController.text.isNotEmpty ||
-                      fiberController.text.isNotEmpty) {
-                    nutritionInfo = NutritionInfo(
-                      calories: double.tryParse(caloriesController.text) ?? 0.0,
-                      protein: double.tryParse(proteinController.text) ?? 0.0,
-                      fat: double.tryParse(fatController.text) ?? 0.0,
-                      carbs: double.tryParse(carbsController.text) ?? 0.0,
-                      fiber: double.tryParse(fiberController.text) ?? 0.0,
-                    );
-                  }
-
-                  final product = Product(
-                    id: _uuid.v4(),
-                    name: nameController.text,
-                    expiryDate: selectedDate,
-                    quantity: double.tryParse(quantityController.text) ?? 1.0,
-                    unit: 'pcs',
-                    barcode: barcode,
-                    category: categoryController.text,
-                    purchaseDate: DateTime.now(),
-                    nutritionInfo: nutritionInfo,
-                  );
-
-                  context.read<InventoryProvider>().addProduct(product);
-                  Navigator.pop(context); // Close dialog
-                  // Navigate to inventory tab (tab 0)
-                  DefaultTabController.of(context).animateTo(0);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${product.name} added to inventory')),
-                  );
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        ),
       ),
     );
   }

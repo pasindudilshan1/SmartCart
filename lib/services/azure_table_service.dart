@@ -23,6 +23,7 @@ class AzureTableService {
   static const String _productsTable = AzureConfig.productsTable;
   static const String _nutritionTable = AzureConfig.nutritionTable;
   static const String _shoppingListTable = AzureConfig.shoppingListTable;
+  static const String _looseItemTable = AzureConfig.looseItemTable;
   static const String _settingsTable = AzureConfig.settingsTable;
 
   AzureTableService() {
@@ -605,6 +606,28 @@ class AzureTableService {
     } catch (e) {
       print('❌ Error searching shopping list by barcode: $e');
       return null;
+    }
+  }
+
+  // ============ LOOSE ITEM OPERATIONS ============
+
+  /// Get all loose items
+  Future<List<Map<String, dynamic>>> getAllLooseItems() async {
+    try {
+      print('📋 Fetching all loose items from table: $_looseItemTable');
+      final response = await _executeTableOperation(
+        'GET',
+        _looseItemTable,
+        '()',
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final values = data['value'] as List;
+      print('✅ Found ${values.length} loose items');
+      return values.cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('❌ Error fetching loose items: $e');
+      return [];
     }
   }
 
