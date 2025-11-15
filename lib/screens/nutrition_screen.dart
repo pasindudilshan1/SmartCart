@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../providers/nutrition_provider.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/household_nutrition_alerts_provider.dart';
-import '../models/nutrition.dart';
 import 'household_nutrition_screen.dart';
 
 class NutritionScreen extends StatefulWidget {
@@ -15,8 +13,6 @@ class NutritionScreen extends StatefulWidget {
 }
 
 class _NutritionScreenState extends State<NutritionScreen> {
-  String _selectedChart = 'comparison';
-
   @override
   void initState() {
     super.initState();
@@ -103,31 +99,31 @@ class _NutritionScreenState extends State<NutritionScreen> {
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              _showGoalsDialog(context);
-            },
-          ),
         ],
       ),
       body: Consumer2<NutritionProvider, InventoryProvider>(
         builder: (context, nutritionProvider, inventoryProvider, child) {
-          final todayNutrition = nutritionProvider.todayNutrition;
           final inventoryNutrition = inventoryProvider.getTotalInventoryNutrition();
+          final alertsProvider = context.watch<HouseholdNutritionAlertsProvider>();
+
+          // Calculate household daily nutrition goals
+          final householdDailyCalories = (alertsProvider.monthlyCaloriesGoal ?? 0) / 30;
+          final householdDailyProtein = (alertsProvider.monthlyProteinGoal ?? 0) / 30;
+          final householdDailyCarbs = (alertsProvider.monthlyCarbsGoal ?? 0) / 30;
+          final householdDailyFat = (alertsProvider.monthlyFatGoal ?? 0) / 30;
+          final householdDailyFiber = (alertsProvider.monthlyFiberGoal ?? 0) / 30;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTodayCard(context, todayNutrition, nutritionProvider),
+                _buildHouseholdDailyCard(context, householdDailyCalories, householdDailyProtein,
+                    householdDailyCarbs, householdDailyFat, householdDailyFiber),
                 const SizedBox(height: 24),
-                _buildInventoryComparisonCard(context, inventoryNutrition, nutritionProvider),
+                _buildInventoryComparisonCard(context, inventoryNutrition, alertsProvider),
                 const SizedBox(height: 24),
-                _buildProgressCards(nutritionProvider),
-                const SizedBox(height: 24),
-                _buildChartSelector(context, nutritionProvider, inventoryNutrition),
+                _buildProgressCards(inventoryNutrition, alertsProvider),
                 const SizedBox(height: 24),
                 _buildNutritionTips(context),
               ],
@@ -138,58 +134,29 @@ class _NutritionScreenState extends State<NutritionScreen> {
     );
   }
 
-  Widget _buildTodayCard(BuildContext context, dynamic todayNutrition, NutritionProvider provider) {
-    final isOverLimit = provider.isCalorieLimitExceeded;
-
+  Widget _buildHouseholdDailyCard(BuildContext context, double calories, double protein,
+      double carbs, double fat, double fiber) {
     return Card(
-      color: isOverLimit ? Colors.red.shade50 : null,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Today\'s Nutrition',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                if (isOverLimit) const Icon(Icons.warning, color: Colors.red),
-              ],
+            Text(
+              'Household Daily Nutrition Goals',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNutrientColumn('Calories', todayNutrition.totalCalories, 'kcal'),
-                _buildNutrientColumn('Protein', todayNutrition.totalProtein, 'g'),
-                _buildNutrientColumn('Carbs', todayNutrition.totalCarbs, 'g'),
-                _buildNutrientColumn('Fat', todayNutrition.totalFat, 'g'),
+                _buildNutrientColumn('Calories', calories, 'kcal'),
+                _buildNutrientColumn('Protein', protein, 'g'),
+                _buildNutrientColumn('Carbs', carbs, 'g'),
+                _buildNutrientColumn('Fat', fat, 'g'),
+                _buildNutrientColumn('Fiber', fiber, 'g'),
               ],
             ),
-            if (isOverLimit) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.warning_amber, size: 16, color: Colors.red),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'You\'ve exceeded your daily calorie goal!',
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -225,21 +192,30 @@ class _NutritionScreenState extends State<NutritionScreen> {
     );
   }
 
-  Widget _buildProgressCards(NutritionProvider provider) {
+  Widget _buildProgressCards(
+      Map<String, double> inventoryNutrition, HouseholdNutritionAlertsProvider alertsProvider) {
     return Column(
       children: [
-        _buildProgressBar('Calories', provider.calorieProgress, Colors.orange),
+        _buildProgressBar('Calories', inventoryNutrition['calories'] ?? 0,
+            alertsProvider.monthlyCaloriesGoal ?? 0),
         const SizedBox(height: 12),
-        _buildProgressBar('Protein', provider.proteinProgress, Colors.red),
+        _buildProgressBar(
+            'Protein', inventoryNutrition['protein'] ?? 0, alertsProvider.monthlyProteinGoal ?? 0),
         const SizedBox(height: 12),
-        _buildProgressBar('Carbs', provider.carbsProgress, Colors.blue),
+        _buildProgressBar(
+            'Carbs', inventoryNutrition['carbs'] ?? 0, alertsProvider.monthlyCarbsGoal ?? 0),
         const SizedBox(height: 12),
-        _buildProgressBar('Fat', provider.fatProgress, Colors.yellow),
+        _buildProgressBar(
+            'Fat', inventoryNutrition['fat'] ?? 0, alertsProvider.monthlyFatGoal ?? 0),
+        const SizedBox(height: 12),
+        _buildProgressBar(
+            'Fiber', inventoryNutrition['fiber'] ?? 0, alertsProvider.monthlyFiberGoal ?? 0),
       ],
     );
   }
 
-  Widget _buildProgressBar(String label, double progress, Color color) {
+  Widget _buildProgressBar(String label, double inventory, double goal) {
+    final percentage = goal > 0 ? (inventory / goal * 100).clamp(0, 999) : 0;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -250,14 +226,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${progress.toStringAsFixed(0)}%'),
+                Text('${percentage.toStringAsFixed(0)}%'),
               ],
             ),
             const SizedBox(height: 8),
             LinearProgressIndicator(
-              value: progress / 100,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
+              value: goal > 0 ? (inventory / goal).clamp(0, 1) : 0,
+              backgroundColor: Colors.green,
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
               minHeight: 8,
             ),
           ],
@@ -267,11 +243,12 @@ class _NutritionScreenState extends State<NutritionScreen> {
   }
 
   Widget _buildInventoryComparisonCard(BuildContext context, Map<String, double> inventoryNutrition,
-      NutritionProvider nutritionProvider) {
-    final householdMonthlyCalories = nutritionProvider.goals.dailyCalorieGoal * 30;
-    final householdMonthlyProtein = nutritionProvider.goals.dailyProteinGoal * 30;
-    final householdMonthlyCarbs = nutritionProvider.goals.dailyCarbsGoal * 30;
-    final householdMonthlyFat = nutritionProvider.goals.dailyFatGoal * 30;
+      HouseholdNutritionAlertsProvider alertsProvider) {
+    final householdMonthlyCalories = alertsProvider.monthlyCaloriesGoal ?? 0;
+    final householdMonthlyProtein = alertsProvider.monthlyProteinGoal ?? 0;
+    final householdMonthlyCarbs = alertsProvider.monthlyCarbsGoal ?? 0;
+    final householdMonthlyFat = alertsProvider.monthlyFatGoal ?? 0;
+    final householdMonthlyFiber = alertsProvider.monthlyFiberGoal ?? 0;
 
     return Card(
       elevation: 4,
@@ -301,6 +278,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 'Carbs', inventoryNutrition['carbs'] ?? 0, householdMonthlyCarbs, 'g'),
             const SizedBox(height: 8),
             _buildComparisonRow('Fat', inventoryNutrition['fat'] ?? 0, householdMonthlyFat, 'g'),
+            const SizedBox(height: 8),
+            _buildComparisonRow(
+                'Fiber', inventoryNutrition['fiber'] ?? 0, householdMonthlyFiber, 'g'),
           ],
         ),
       ),
@@ -349,184 +329,6 @@ class _NutritionScreenState extends State<NutritionScreen> {
     );
   }
 
-  Widget _buildChartSelector(BuildContext context, NutritionProvider nutritionProvider,
-      Map<String, double> inventoryNutrition) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Nutrition Charts',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            DropdownButton<String>(
-              value: _selectedChart,
-              items: const [
-                DropdownMenuItem(value: 'comparison', child: Text('Consumption vs Inventory')),
-                DropdownMenuItem(value: 'monthly', child: Text('Monthly Goals')),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedChart = value;
-                  });
-                }
-              },
-              isExpanded: true,
-            ),
-            const SizedBox(height: 16),
-            _buildSelectedChart(context, nutritionProvider, inventoryNutrition),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSelectedChart(BuildContext context, NutritionProvider nutritionProvider,
-      Map<String, double> inventoryNutrition) {
-    switch (_selectedChart) {
-      case 'comparison':
-        return _buildComparisonChart(context, nutritionProvider, inventoryNutrition);
-      case 'monthly':
-        return _buildMonthlyGoalsChart(context, nutritionProvider);
-      default:
-        return _buildComparisonChart(context, nutritionProvider, inventoryNutrition);
-    }
-  }
-
-  Widget _buildComparisonChart(BuildContext context, NutritionProvider nutritionProvider,
-      Map<String, double> inventoryNutrition) {
-    final weeklyData = nutritionProvider.getWeeklyNutrition();
-    final todayInventoryCalories = inventoryNutrition['calories'] ?? 0;
-
-    return SizedBox(
-      height: 300,
-      child: LineChart(
-        LineChartData(
-          gridData: const FlGridData(show: true),
-          titlesData: FlTitlesData(
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                  if (value.toInt() >= 0 && value.toInt() < days.length) {
-                    return Text(days[value.toInt()], style: const TextStyle(fontSize: 10));
-                  }
-                  return const Text('');
-                },
-              ),
-            ),
-            leftTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          borderData: FlBorderData(show: true),
-          lineBarsData: [
-            LineChartBarData(
-              spots: weeklyData.asMap().entries.map((entry) {
-                return FlSpot(entry.key.toDouble(), entry.value.totalCalories);
-              }).toList(),
-              isCurved: true,
-              color: Colors.blue,
-              barWidth: 3,
-              dotData: const FlDotData(show: true),
-              belowBarData: BarAreaData(show: false),
-            ),
-            LineChartBarData(
-              spots:
-                  List.generate(7, (index) => FlSpot(index.toDouble(), todayInventoryCalories / 7)),
-              isCurved: false,
-              color: Colors.green,
-              barWidth: 2,
-              dotData: const FlDotData(show: false),
-              dashArray: [5, 5],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthlyGoalsChart(BuildContext context, NutritionProvider nutritionProvider) {
-    // Calculate monthly goals and current consumption
-    final goals = nutritionProvider.goals;
-    final monthlyCalorieGoal = goals.dailyCalorieGoal * 30;
-    final monthlyProteinGoal = goals.dailyProteinGoal * 30;
-    final monthlyCarbsGoal = goals.dailyCarbsGoal * 30;
-    final monthlyFatGoal = goals.dailyFatGoal * 30;
-
-    // Get current month's consumption (simplified - using weekly data * 4)
-    final weeklyData = nutritionProvider.getWeeklyNutrition();
-    final currentWeekTotal =
-        weeklyData.isNotEmpty ? weeklyData.last : nutritionProvider.todayNutrition;
-    final estimatedMonthlyCalories = currentWeekTotal.totalCalories * 4;
-    final estimatedMonthlyProtein = currentWeekTotal.totalProtein * 4;
-    final estimatedMonthlyCarbs = currentWeekTotal.totalCarbs * 4;
-    final estimatedMonthlyFat = currentWeekTotal.totalFat * 4;
-
-    final data = [
-      {'label': 'Calories', 'actual': estimatedMonthlyCalories, 'goal': monthlyCalorieGoal},
-      {'label': 'Protein', 'actual': estimatedMonthlyProtein, 'goal': monthlyProteinGoal},
-      {'label': 'Carbs', 'actual': estimatedMonthlyCarbs, 'goal': monthlyCarbsGoal},
-      {'label': 'Fat', 'actual': estimatedMonthlyFat, 'goal': monthlyFatGoal},
-    ];
-
-    return SizedBox(
-      height: 300,
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: data.map((d) => (d['goal'] as double) * 1.2).reduce((a, b) => a > b ? a : b),
-          barGroups: data.asMap().entries.map((entry) {
-            final item = entry.value;
-            final actual = item['actual'] as double;
-            final goal = item['goal'] as double;
-            return BarChartGroupData(
-              x: entry.key,
-              barRods: [
-                BarChartRodData(
-                  toY: actual,
-                  color: actual > goal ? Colors.red : Colors.blue,
-                  width: 20,
-                ),
-                BarChartRodData(
-                  toY: goal,
-                  color: Colors.green.withValues(alpha: 0.7),
-                  width: 20,
-                ),
-              ],
-            );
-          }).toList(),
-          titlesData: FlTitlesData(
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  if (value.toInt() >= 0 && value.toInt() < data.length) {
-                    return Text(data[value.toInt()]['label'] as String,
-                        style: const TextStyle(fontSize: 10));
-                  }
-                  return const Text('');
-                },
-              ),
-            ),
-            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          gridData: const FlGridData(show: true),
-          borderData: FlBorderData(show: true),
-        ),
-      ),
-    );
-  }
-
   Widget _buildNutritionTips(BuildContext context) {
     return Card(
       color: Colors.blue.shade50,
@@ -552,76 +354,6 @@ class _NutritionScreenState extends State<NutritionScreen> {
             const Text('• Track regularly to build healthy habits'),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showGoalsDialog(BuildContext context) {
-    final provider = context.read<NutritionProvider>();
-    final goals = provider.goals;
-
-    final calorieController = TextEditingController(text: goals.dailyCalorieGoal.toString());
-    final proteinController = TextEditingController(text: goals.dailyProteinGoal.toString());
-    final carbsController = TextEditingController(text: goals.dailyCarbsGoal.toString());
-    final fatController = TextEditingController(text: goals.dailyFatGoal.toString());
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Set Nutrition Goals'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: calorieController,
-                decoration: const InputDecoration(labelText: 'Daily Calories (kcal)'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: proteinController,
-                decoration: const InputDecoration(labelText: 'Daily Protein (g)'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: carbsController,
-                decoration: const InputDecoration(labelText: 'Daily Carbs (g)'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: fatController,
-                decoration: const InputDecoration(labelText: 'Daily Fat (g)'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Parse values and save goals
-              final calorieGoal = double.tryParse(calorieController.text) ?? goals.dailyCalorieGoal;
-              final proteinGoal = double.tryParse(proteinController.text) ?? goals.dailyProteinGoal;
-              final carbsGoal = double.tryParse(carbsController.text) ?? goals.dailyCarbsGoal;
-              final fatGoal = double.tryParse(fatController.text) ?? goals.dailyFatGoal;
-
-              final newGoals = NutritionGoals(
-                dailyCalorieGoal: calorieGoal,
-                dailyProteinGoal: proteinGoal,
-                dailyCarbsGoal: carbsGoal,
-                dailyFatGoal: fatGoal,
-              );
-
-              provider.updateGoals(newGoals);
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }

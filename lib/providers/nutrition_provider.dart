@@ -60,9 +60,10 @@ class NutritionProvider extends ChangeNotifier {
     required double protein,
     required double carbs,
     required double fat,
+    required double fiber,
     required String productId,
   }) async {
-    _todayNutrition?.addNutrition(calories, protein, carbs, fat, productId);
+    _todayNutrition?.addNutrition(calories, protein, carbs, fat, fiber, productId);
 
     final today = DateTime.now();
     final todayKey = '${today.year}-${today.month}-${today.day}';
@@ -111,6 +112,7 @@ class NutritionProvider extends ChangeNotifier {
   double get proteinProgress => _goals.getProteinProgress(todayNutrition.totalProtein);
   double get carbsProgress => _goals.getCarbsProgress(todayNutrition.totalCarbs);
   double get fatProgress => _goals.getFatProgress(todayNutrition.totalFat);
+  double get fiberProgress => _goals.getFiberProgress(todayNutrition.totalFiber);
 
   // Get nutrition data for a specific date
   DailyNutrition? getNutritionForDate(DateTime date) {

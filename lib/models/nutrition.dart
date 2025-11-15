@@ -23,6 +23,9 @@ class DailyNutrition extends HiveObject {
   double totalFat;
 
   @HiveField(5)
+  double totalFiber;
+
+  @HiveField(6)
   List<String> consumedProductIds;
 
   DailyNutrition({
@@ -31,15 +34,18 @@ class DailyNutrition extends HiveObject {
     this.totalProtein = 0.0,
     this.totalCarbs = 0.0,
     this.totalFat = 0.0,
+    this.totalFiber = 0.0,
     List<String>? consumedProductIds,
   }) : consumedProductIds = consumedProductIds ?? [];
 
   // Add nutrition from a product
-  void addNutrition(double calories, double protein, double carbs, double fat, String productId) {
+  void addNutrition(
+      double calories, double protein, double carbs, double fat, double fiber, String productId) {
     totalCalories += calories;
     totalProtein += protein;
     totalCarbs += carbs;
     totalFat += fat;
+    totalFiber += fiber;
     if (!consumedProductIds.contains(productId)) {
       consumedProductIds.add(productId);
     }
