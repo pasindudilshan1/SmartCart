@@ -301,8 +301,6 @@ class AzureTableService {
       'Carbs': product.nutritionInfo?.carbs ?? 0.0,
       'Fat': product.nutritionInfo?.fat ?? 0.0,
       'Fiber': product.nutritionInfo?.fiber ?? 0.0,
-      'Sugar': product.nutritionInfo?.sugar ?? 0.0,
-      'Sodium': product.nutritionInfo?.sodium ?? 0.0,
       'ServingSize': product.nutritionInfo?.servingSize ?? '',
     };
 
@@ -628,6 +626,33 @@ class AzureTableService {
     } catch (e) {
       print('❌ Error fetching loose items: $e');
       return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> getLooseItemByQRCode(String qrCode) async {
+    try {
+      print('🔍 Searching loose items for QR code: $qrCode');
+      final response = await _executeTableOperation(
+        'GET',
+        _looseItemTable,
+        '()',
+        queryParams: {
+          '\u0024filter': "QRCode eq '$qrCode'",
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final values = data['value'] as List;
+      if (values.isNotEmpty) {
+        print('✅ Found loose item for QR code $qrCode');
+        return values.first as Map<String, dynamic>;
+      } else {
+        print('⚠️ No loose item found for QR code $qrCode');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Error searching loose items by QR code: $e');
+      return null;
     }
   }
 

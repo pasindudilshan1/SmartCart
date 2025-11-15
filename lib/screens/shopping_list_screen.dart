@@ -147,7 +147,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
     final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
 
     return Card(
-      color: color.withOpacity(0.08),
+      color: color.withValues(alpha: 0.08),
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(
@@ -405,10 +405,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
               '$brand${brand.isNotEmpty ? ' • ' : ''}$category',
               style: TextStyle(color: Colors.grey.shade600),
             ),
-            Text(
-              category.toLowerCase() == 'beverages' ? '1 bottle' : '$quantity $unit',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
+            if (!_isLooseItemsMode)
+              Text(
+                '$quantity $unit',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
           ],
         ),
         trailing: const Icon(Icons.chevron_right),
@@ -458,6 +459,132 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
     );
   }
 
+  void _showLooseItemShoppingDialog(Map<String, dynamic> looseItem) {
+    final weightController = TextEditingController(text: '100');
+    double weight = 100.0;
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Buy ${looseItem['product'] ?? 'Loose Item'}',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                looseItem['product'] ?? 'Unknown Product',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                'Loose Item - ${looseItem['category'] ?? 'Other'}',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.shopping_bag, color: Colors.green),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: weightController,
+                    decoration: const InputDecoration(
+                      labelText: 'Weight (grams)',
+                      border: OutlineInputBorder(),
+                      hintText: 'Enter weight in grams',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      setState(() {
+                        weight = double.tryParse(value) ?? 100.0;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Expiry Date'),
+                    subtitle: Text(selectedDate.toString().split(' ')[0]),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (date != null) {
+                        setState(() => selectedDate = date);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Nutrition Information (per 100g)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildLooseItemNutritionDisplay(looseItem, isTotal: false),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Total Nutrition (${weight.toStringAsFixed(0)}g)',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildLooseItemNutritionDisplay(looseItem, weight: weight, isTotal: true),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _purchaseLooseItem(looseItem, weight, selectedDate),
+                        child: const Text('Add to Inventory'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _purchaseProduct(Map<String, dynamic> item, double quantity) async {
     try {
       final userId = await LocalStorageService.getUserId();
@@ -476,8 +603,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
       final baseCarbs = (item['Carbs'] ?? item['carbs'] ?? 0.0).toDouble();
       final baseFat = (item['Fat'] ?? item['fat'] ?? 0.0).toDouble();
       final baseFiber = (item['Fiber'] ?? item['fiber'] ?? 0.0).toDouble();
-      final baseSugar = (item['Sugar'] ?? item['sugar'] ?? 0.0).toDouble();
-      final baseSodium = (item['Sodium'] ?? item['sodium'] ?? 0.0).toDouble();
 
       // Get category to determine if it's a beverage
       final category = item['Category'] ?? item['category'] ?? 'Other';
@@ -505,8 +630,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
       final calculatedCarbs = baseCarbs * weightMultiplier;
       final calculatedFat = baseFat * weightMultiplier;
       final calculatedFiber = baseFiber * weightMultiplier;
-      final calculatedSugar = baseSugar * weightMultiplier;
-      final calculatedSodium = baseSodium * weightMultiplier;
 
       // Create product from shopping item
       final product = Product(
@@ -535,8 +658,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
                 carbs: calculatedCarbs,
                 fat: calculatedFat,
                 fiber: calculatedFiber,
-                sugar: calculatedSugar,
-                sodium: calculatedSodium,
                 servingSize: isBeverage
                     ? '${(isLooseItem ? totalActualWeight : actualWeightPerUnit).toStringAsFixed(0)}ml'
                     : '${(isLooseItem ? totalActualWeight : actualWeightPerUnit).toStringAsFixed(0)}g',
@@ -600,7 +721,13 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
               );
 
               if (scannedItem != null && mounted) {
-                _showProductDetails(scannedItem);
+                final isLooseItem = scannedItem['main_category'] == 'Loose Items' ||
+                    scannedItem['QRCode']?.toString().startsWith('LooseItems__') == true;
+                if (isLooseItem) {
+                  _showLooseItemShoppingDialog(scannedItem);
+                } else {
+                  _showProductDetails(scannedItem);
+                }
               }
             },
             icon: const Icon(Icons.qr_code_scanner),
@@ -616,6 +743,167 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Widget _buildLooseItemNutritionDisplay(Map<String, dynamic> item,
+      {double weight = 100.0, bool isTotal = false}) {
+    final calories = item['calories']?.toDouble() ?? 0.0;
+    final protein = item['protein']?.toDouble() ?? 0.0;
+    final fat = item['fat']?.toDouble() ?? 0.0;
+    final carbs = item['carbs']?.toDouble() ?? 0.0;
+    final fiber = item['fiber']?.toDouble() ?? 0.0;
+
+    double multiplier = 1.0;
+    if (isTotal) {
+      multiplier = weight / 100.0;
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Calories', calories * multiplier, 'kcal'),
+            ),
+            Expanded(
+              child: _buildNutritionItem('Protein', protein * multiplier, 'g'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Fat', fat * multiplier, 'g'),
+            ),
+            Expanded(
+              child: _buildNutritionItem('Carbs', carbs * multiplier, 'g'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Fiber', fiber * multiplier, 'g'),
+            ),
+            const Expanded(child: SizedBox()),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNutritionItem(String label, double value, String unit) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          Text(
+            '${value.toStringAsFixed(1)} $unit',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _purchaseLooseItem(
+      Map<String, dynamic> looseItem, double weight, DateTime expiryDate) async {
+    try {
+      final userId = await LocalStorageService.getUserId();
+      if (userId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error: User not logged in')),
+          );
+        }
+        return;
+      }
+
+      // Calculate nutrition for the purchased weight
+      final baseCalories = looseItem['calories']?.toDouble() ?? 0.0;
+      final baseProtein = looseItem['protein']?.toDouble() ?? 0.0;
+      final baseFat = looseItem['fat']?.toDouble() ?? 0.0;
+      final baseCarbs = looseItem['carbs']?.toDouble() ?? 0.0;
+      final baseFiber = looseItem['fiber']?.toDouble() ?? 0.0;
+
+      final weightMultiplier = weight / 100.0;
+
+      final calculatedCalories = baseCalories * weightMultiplier;
+      final calculatedProtein = baseProtein * weightMultiplier;
+      final calculatedFat = baseFat * weightMultiplier;
+      final calculatedCarbs = baseCarbs * weightMultiplier;
+      final calculatedFiber = baseFiber * weightMultiplier;
+
+      // Create product from loose item
+      final product = Product(
+        id: 'prod_${DateTime.now().millisecondsSinceEpoch}',
+        name: looseItem['product'] ?? 'Unknown Product',
+        barcode: looseItem['QRCode'],
+        category: looseItem['category'] ?? 'Other',
+        quantity: 1.0,
+        unit: 'g',
+        actualWeight: weight,
+        price: null,
+        imageUrl: null,
+        storageLocation: 'pantry',
+        purchaseDate: DateTime.now(),
+        dateAdded: DateTime.now(),
+        expiryDate: expiryDate,
+        nutritionInfo: calculatedCalories > 0
+            ? NutritionInfo(
+                calories: calculatedCalories,
+                protein: calculatedProtein,
+                carbs: calculatedCarbs,
+                fat: calculatedFat,
+                fiber: calculatedFiber,
+              )
+            : null,
+      );
+
+      // Store in Azure and local database
+      await _azureService.storeProduct(userId, product);
+
+      // Add to inventory provider
+      if (mounted) {
+        final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+        await inventoryProvider.addProduct(product);
+
+        if (mounted) {
+          Navigator.pop(context); // Close the bottom sheet
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${product.name} (${weight.toStringAsFixed(0)}g) added to inventory'),
+              backgroundColor: Colors.green,
+              action: SnackBarAction(
+                label: 'VIEW',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.pushNamed(context, '/inventory');
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error purchasing loose item: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }
 
@@ -697,8 +985,6 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
     final carbs = (item['Carbs'] ?? item['carbs'] ?? 0.0).toDouble();
     final fat = (item['Fat'] ?? item['fat'] ?? 0.0).toDouble();
     final fiber = (item['Fiber'] ?? item['fiber'] ?? 0.0).toDouble();
-    final sugar = (item['Sugar'] ?? item['sugar'] ?? 0.0).toDouble();
-    final sodium = (item['Sodium'] ?? item['sodium'] ?? 0.0).toDouble();
 
     // Get existing inventory products
     final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
@@ -863,8 +1149,6 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
                       _buildInfoRow('Carbs', '${carbs.toStringAsFixed(1)}g'),
                       _buildInfoRow('Fat', '${fat.toStringAsFixed(1)}g'),
                       if (fiber > 0) _buildInfoRow('Fiber', '${fiber.toStringAsFixed(1)}g'),
-                      if (sugar > 0) _buildInfoRow('Sugar', '${sugar.toStringAsFixed(1)}g'),
-                      if (sodium > 0) _buildInfoRow('Sodium', '${sodium.toStringAsFixed(1)}mg'),
                     ]),
 
               if (notes.isNotEmpty) ...[
@@ -1056,7 +1340,7 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
     final label = alert.triggeredByUpcomingPurchase ? 'After purchase' : 'Current';
 
     return Card(
-      color: color.withOpacity(0.08),
+      color: color.withValues(alpha: 0.08),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -1075,7 +1359,7 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.16),
+                    color: color.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(

@@ -1132,7 +1132,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
 
     return Card(
-      color: color.withOpacity(0.08),
+      color: color.withValues(alpha: 0.08),
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(

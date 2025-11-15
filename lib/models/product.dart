@@ -114,12 +114,6 @@ class NutritionInfo {
   double fiber; // in grams
 
   @HiveField(5)
-  double sugar; // in grams
-
-  @HiveField(6)
-  double sodium; // in mg
-
-  @HiveField(7)
   String? servingSize;
 
   NutritionInfo({
@@ -128,8 +122,6 @@ class NutritionInfo {
     required this.carbs,
     required this.fat,
     this.fiber = 0.0,
-    this.sugar = 0.0,
-    this.sodium = 0.0,
     this.servingSize,
   });
 

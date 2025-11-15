@@ -134,8 +134,6 @@ class InventoryProvider extends ChangeNotifier {
           carbs: (data['Carbs'] ?? 0.0).toDouble(),
           fat: (data['Fat'] ?? 0.0).toDouble(),
           fiber: (data['Fiber'] ?? 0.0).toDouble(),
-          sugar: (data['Sugar'] ?? 0.0).toDouble(),
-          sodium: (data['Sodium'] ?? 0.0).toDouble(),
           servingSize: data['ServingSize']?.isEmpty == true ? null : data['ServingSize'],
         );
       }
@@ -246,8 +244,6 @@ class InventoryProvider extends ChangeNotifier {
           fat: per100gFat * newTotalFactor,
           carbs: per100gCarbs * newTotalFactor,
           fiber: per100gFiber * newTotalFactor,
-          sugar: product.nutritionInfo!.sugar,
-          sodium: product.nutritionInfo!.sodium,
           servingSize: product.nutritionInfo!.servingSize,
         );
       }

@@ -177,8 +177,33 @@ class _ScannerScreenState extends State<ScannerScreen> {
         );
       }
 
-      // First, try to find the product in the shopping list by barcode
       final azureService = AzureTableService();
+
+      // Check if it's a loose item QR code
+      if (qrData.startsWith('LooseItems__')) {
+        final looseItem = await azureService.getLooseItemByQRCode(qrData);
+        if (looseItem != null && mounted) {
+          // Loose item found
+          if (widget.isFromShoppingList) {
+            // Return the loose item to the shopping list screen
+            Navigator.of(context).pop(looseItem);
+          } else {
+            // Show loose item details for inventory scanning
+            _showLooseItemDetails(looseItem);
+          }
+          return;
+        } else {
+          // Loose item not found
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Loose item not found in database')),
+            );
+          }
+          return;
+        }
+      }
+
+      // First, try to find the product in the shopping list by barcode
       final shoppingItem = await azureService.getShoppingListItemByBarcode(qrData);
 
       if (shoppingItem != null && mounted) {
@@ -833,6 +858,264 @@ class _ScannerScreenState extends State<ScannerScreen> {
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLooseItemNutritionDisplay(Map<String, dynamic> item,
+      {double quantity = 1.0, bool isTotal = false}) {
+    final calories = item['calories']?.toDouble() ?? 0.0;
+    final protein = item['protein']?.toDouble() ?? 0.0;
+    final fat = item['fat']?.toDouble() ?? 0.0;
+    final carbs = item['carbs']?.toDouble() ?? 0.0;
+    final fiber = item['fiber']?.toDouble() ?? 0.0;
+
+    double multiplier = 1.0;
+    if (isTotal) {
+      multiplier = quantity / 100.0;
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Calories', calories * multiplier, 'kcal'),
+            ),
+            Expanded(
+              child: _buildNutritionItem('Protein', protein * multiplier, 'g'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Fat', fat * multiplier, 'g'),
+            ),
+            Expanded(
+              child: _buildNutritionItem('Carbs', carbs * multiplier, 'g'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Fiber', fiber * multiplier, 'g'),
+            ),
+            const Expanded(child: SizedBox()),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showLooseItemDetails(Map<String, dynamic> looseItem) {
+    final quantityController = TextEditingController(text: '100');
+    double quantity = 100.0;
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          looseItem['product'] ?? 'Unknown Loose Item',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Loose Item',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Category
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.category, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Category: ${looseItem['category'] ?? 'Other'}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // QR Code
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.qr_code, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'QR Code: ${looseItem['QRCode'] ?? 'N/A'}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Quantity Input
+                  TextField(
+                    controller: quantityController,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity (grams)',
+                      border: OutlineInputBorder(),
+                      hintText: 'Enter weight in grams',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      setState(() {
+                        quantity = double.tryParse(value) ?? 100.0;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  // Expiry Date
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Expiry Date'),
+                    subtitle: Text(selectedDate.toString().split(' ')[0]),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (date != null) {
+                        setState(() => selectedDate = date);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Nutrition Information (per 100g)',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLooseItemNutritionDisplay(looseItem, isTotal: false),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Total Nutrition (${quantity.toStringAsFixed(0)}g)',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildLooseItemNutritionDisplay(looseItem, quantity: quantity, isTotal: true),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Close'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          // Calculate nutrition based on loose item
+                          NutritionInfo? nutritionInfo;
+
+                          // Get base values (per 100g from loose item)
+                          final baseCalories = looseItem['calories']?.toDouble() ?? 0.0;
+                          final baseProtein = looseItem['protein']?.toDouble() ?? 0.0;
+                          final baseFat = looseItem['fat']?.toDouble() ?? 0.0;
+                          final baseCarbs = looseItem['carbs']?.toDouble() ?? 0.0;
+                          final baseFiber = looseItem['fiber']?.toDouble() ?? 0.0;
+
+                          final weightMultiplier = quantity / 100.0;
+
+                          nutritionInfo = NutritionInfo(
+                            calories: baseCalories * weightMultiplier,
+                            protein: baseProtein * weightMultiplier,
+                            fat: baseFat * weightMultiplier,
+                            carbs: baseCarbs * weightMultiplier,
+                            fiber: baseFiber * weightMultiplier,
+                          );
+
+                          final product = Product(
+                            id: _uuid.v4(),
+                            name: looseItem['product'] ?? 'Unknown Product',
+                            barcode: looseItem['QRCode'],
+                            category: looseItem['category'] ?? 'Other',
+                            quantity: 1.0, // Always 1 for loose items
+                            unit: 'g',
+                            actualWeight: quantity,
+                            purchaseDate: DateTime.now(),
+                            expiryDate: selectedDate,
+                            nutritionInfo: nutritionInfo,
+                          );
+
+                          await context.read<InventoryProvider>().addProduct(product);
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close details
+                            // Navigate to inventory tab (tab 0)
+                            DefaultTabController.of(context).animateTo(0);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    '${product.name} (${quantity.toStringAsFixed(0)}g) added to inventory'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.add_shopping_cart),
+                        label: const Text('Add to Inventory'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -384,8 +384,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         fat: per100gFat * newTotalFactor,
         carbs: per100gCarbs * newTotalFactor,
         fiber: per100gFiber * newTotalFactor,
-        sugar: widget.product.nutritionInfo!.sugar,
-        sodium: widget.product.nutritionInfo!.sodium,
         servingSize: widget.product.nutritionInfo!.servingSize,
       );
     }
