@@ -62,7 +62,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
                 icon: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Icon(hasAlerts ? Icons.notifications : Icons.notifications_none),
+                    Icon(hasAlerts
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_outlined),
                     if (alertsProvider.isLoading)
                       const Positioned(
                         right: -2,
@@ -81,8 +83,15 @@ class _NutritionScreenState extends State<NutritionScreen> {
                           width: 10,
                           height: 10,
                           decoration: BoxDecoration(
-                            color: Colors.redAccent,
+                            gradient: const LinearGradient(colors: [Colors.red, Colors.redAccent]),
                             borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.withOpacity(0.3),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -92,10 +101,21 @@ class _NutritionScreenState extends State<NutritionScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.group),
+            icon: const Icon(Icons.group_outlined),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const HouseholdNutritionScreen()),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      const HouseholdNutritionScreen(),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    const begin = Offset(1.0, 0.0);
+                    const end = Offset.zero;
+                    const curve = Curves.easeInOut;
+                    var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                    var offsetAnimation = animation.drive(tween);
+                    return SlideTransition(position: offsetAnimation, child: child);
+                  },
+                ),
               );
             },
           ),
@@ -118,14 +138,68 @@ class _NutritionScreenState extends State<NutritionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHouseholdDailyCard(context, householdDailyCalories, householdDailyProtein,
-                    householdDailyCarbs, householdDailyFat, householdDailyFiber),
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 600),
+                  builder: (context, value, child) {
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: _buildHouseholdDailyCard(
+                            context,
+                            householdDailyCalories,
+                            householdDailyProtein,
+                            householdDailyCarbs,
+                            householdDailyFat,
+                            householdDailyFiber),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 24),
-                _buildInventoryComparisonCard(context, inventoryNutrition, alertsProvider),
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 700),
+                  builder: (context, value, child) {
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: _buildInventoryComparisonCard(
+                            context, inventoryNutrition, alertsProvider),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 24),
-                _buildProgressCards(inventoryNutrition, alertsProvider),
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 800),
+                  builder: (context, value, child) {
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: _buildProgressCards(inventoryNutrition, alertsProvider),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 24),
-                _buildNutritionTips(context),
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 900),
+                  builder: (context, value, child) {
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: _buildNutritionTips(context),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           );
@@ -137,58 +211,112 @@ class _NutritionScreenState extends State<NutritionScreen> {
   Widget _buildHouseholdDailyCard(BuildContext context, double calories, double protein,
       double carbs, double fat, double fiber) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Household Daily Nutrition Goals',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNutrientColumn('Calories', calories, 'kcal'),
-                _buildNutrientColumn('Protein', protein, 'g'),
-                _buildNutrientColumn('Carbs', carbs, 'g'),
-                _buildNutrientColumn('Fat', fat, 'g'),
-                _buildNutrientColumn('Fiber', fiber, 'g'),
-              ],
-            ),
-          ],
+      elevation: 4,
+      shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [
+              Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              Theme.of(context).colorScheme.surface,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.restaurant_menu_outlined,
+                      color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Household Daily Nutrition Goals',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNutrientColumn('Calories', calories, 'kcal'),
+                  _buildNutrientColumn('Protein', protein, 'g'),
+                  _buildNutrientColumn('Carbs', carbs, 'g'),
+                  _buildNutrientColumn('Fat', fat, 'g'),
+                  _buildNutrientColumn('Fiber', fiber, 'g'),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildNutrientColumn(String label, double value, String unit) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value.toStringAsFixed(0),
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          unit,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
-        ),
-      ],
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: value),
+      duration: const Duration(milliseconds: 1500),
+      curve: Curves.easeOut,
+      builder: (context, animatedValue, child) {
+        return Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    animatedValue.toStringAsFixed(0),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  Text(
+                    unit,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -362,35 +490,107 @@ class _NutritionScreenState extends State<NutritionScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.notifications_active, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Household Nutrition Alerts',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.orange, Colors.orangeAccent],
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.notifications_active_outlined,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Household Nutrition Alerts',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close_outlined,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (alerts.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_outline,
+                              size: 48,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'All good! No alerts right now.',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: alerts.length,
+                        itemBuilder: (context, index) {
+                          final alert = alerts[index];
+                          return TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            duration: Duration(milliseconds: 300 + (index * 100)),
+                            builder: (context, value, child) {
+                              return Opacity(
+                                opacity: value,
+                                child: Transform.translate(
+                                  offset: Offset(0, 20 * (1 - value)),
+                                  child: _buildAlertTile(alert),
+                                ),
+                              );
+                            },
+                          );
+                        },
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ...alerts.map(_buildAlertTile),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -400,17 +600,59 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   Widget _buildAlertTile(NutritionAlert alert) {
     final color = alert.isCritical ? Colors.red : Colors.orange;
-    final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
+    final emoji = alert.isCritical ? '🚨' : '⚠️';
 
     return Card(
-      color: color.withValues(alpha: 0.08),
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(
-          alert.headline,
-          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 2,
+      shadowColor: color.withOpacity(0.2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.05),
+              color.withOpacity(0.02),
+            ],
+          ),
         ),
-        subtitle: Text(alert.description),
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(16),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color, color.withOpacity(0.8)],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              emoji,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+          title: Text(
+            alert.headline,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              alert.description,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

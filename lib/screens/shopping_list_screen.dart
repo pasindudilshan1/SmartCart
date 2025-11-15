@@ -211,7 +211,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(hasAlerts ? Icons.notifications : Icons.notifications_none),
+                Icon(
+                    hasAlerts ? Icons.notifications_active_outlined : Icons.notifications_outlined),
                 if (alertsProvider.isLoading)
                   const Positioned(
                     right: -2,
@@ -230,8 +231,15 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: Colors.redAccent,
+                        gradient: const LinearGradient(colors: [Colors.red, Colors.redAccent]),
                         borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.3),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -239,7 +247,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
             ),
           ),
           IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            icon: Icon(_isSearching ? Icons.close_outlined : Icons.search_outlined),
             onPressed: () {
               setState(() {
                 _isSearching = !_isSearching;
@@ -360,13 +368,65 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
       itemBuilder: (context, index) {
         final category = categories[index];
         final items = groupedItems[category]!;
-        return ExpansionTile(
-          title: Text(
-            category,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text('${items.length} items'),
-          children: items.map((item) => _buildShoppingItemCard(item)).toList(),
+        return TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 400 + (index * 100)),
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 30 * (1 - value)),
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  elevation: 2,
+                  shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ExpansionTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            _getCategoryColor(category),
+                            _getCategoryColor(category).withOpacity(0.7)
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        _getCategoryEmoji(category),
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                    title: Text(
+                      category,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text('${items.length} items'),
+                    children: items.asMap().entries.map((entry) {
+                      final itemIndex = entry.key;
+                      final item = entry.value;
+                      return TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0.0, end: 1.0),
+                        duration: Duration(milliseconds: 300 + (itemIndex * 50)),
+                        builder: (context, itemValue, child) {
+                          return Opacity(
+                            opacity: itemValue,
+                            child: Transform.translate(
+                              offset: Offset(20 * (1 - itemValue), 0),
+                              child: _buildShoppingItemCard(item),
+                            ),
+                          );
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -385,35 +445,52 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
     final unit = item['Unit'] ?? item['unit'] ?? 'pcs';
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      elevation: 1,
+      shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getCategoryColor(category),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [_getCategoryColor(category), _getCategoryColor(category).withOpacity(0.8)],
+            ),
+            shape: BoxShape.circle,
+          ),
           child: Text(
-            productName[0].toUpperCase(),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            _getCategoryEmoji(category),
+            style: const TextStyle(fontSize: 16),
           ),
         ),
         title: Text(
           productName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '$brand${brand.isNotEmpty ? ' • ' : ''}$category',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
             if (!_isLooseItemsMode)
               Text(
                 '$quantity $unit',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500),
               ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Icon(Icons.chevron_right_outlined, color: Theme.of(context).colorScheme.primary),
         onTap: () => _showProductDetails(item),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
@@ -436,6 +513,27 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
         return Colors.cyan;
       default:
         return Colors.grey;
+    }
+  }
+
+  String _getCategoryEmoji(String category) {
+    switch (category.toLowerCase()) {
+      case 'dairy':
+        return '🥛';
+      case 'meat':
+        return '🍖';
+      case 'fruits':
+        return '🍎';
+      case 'vegetables':
+        return '🥕';
+      case 'bakery':
+        return '🍞';
+      case 'grains':
+        return '🌾';
+      case 'beverages':
+        return '🥤';
+      default:
+        return '📦';
     }
   }
 

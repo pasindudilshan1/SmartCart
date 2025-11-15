@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/nutrition_provider.dart';
+import 'providers/theme_provider.dart';
 import 'providers/household_nutrition_alerts_provider.dart';
 import 'services/azure_auth_service.dart';
 import 'models/product.dart';
@@ -65,26 +66,32 @@ class SmartCartApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => NutritionProvider()),
         ChangeNotifierProvider(create: (_) => HouseholdNutritionAlertsProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'SmartCart',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.green,
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.green,
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-        ),
-        // Start with login screen - auth flow will handle navigation
-        home: const LoginScreen(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'SmartCart',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.green,
+                brightness: Brightness.light,
+              ),
+              useMaterial3: true,
+            ),
+            darkTheme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.green,
+                brightness: Brightness.dark,
+              ),
+              useMaterial3: true,
+            ),
+            themeMode: themeProvider.themeMode,
+            // Start with login screen - auth flow will handle navigation
+            home: const LoginScreen(),
+          );
+        },
       ),
     );
   }

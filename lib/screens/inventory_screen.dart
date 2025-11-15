@@ -10,7 +10,6 @@ import '../providers/nutrition_provider.dart';
 import '../models/product.dart';
 import '../services/azure_table_service.dart';
 import 'product_detail_screen.dart';
-import 'initial_inventory_setup_screen.dart';
 import 'scanner_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -173,6 +172,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
         onPressed: _showAddOptionsDialog,
         icon: const Icon(Icons.add),
         label: const Text('Add Items'),
+        elevation: 6,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
     );
   }
@@ -756,21 +758,30 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final isSelected = _selectedFilter == label;
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
-      child: FilterChip(
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16),
-            const SizedBox(width: 4),
-            Text(label),
-          ],
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        transform: isSelected ? Matrix4.identity() : Matrix4.identity().scaled(0.95),
+        child: FilterChip(
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: isSelected ? Colors.white : null),
+              const SizedBox(width: 4),
+              Text(label),
+            ],
+          ),
+          selected: isSelected,
+          onSelected: (selected) {
+            setState(() {
+              _selectedFilter = label;
+            });
+          },
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          selectedColor: Theme.of(context).colorScheme.primary,
+          checkmarkColor: Colors.white,
+          elevation: isSelected ? 4 : 0,
+          shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.3),
         ),
-        selected: isSelected,
-        onSelected: (selected) {
-          setState(() {
-            _selectedFilter = label;
-          });
-        },
       ),
     );
   }
@@ -887,93 +898,152 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Widget _buildCategorySection(String category, List<Product> products) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: _getCategoryColor(category),
-          child: Text(
-            products.length.toString(),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        title: Text(
-          category,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text('${products.length} item${products.length != 1 ? 's' : ''}'),
-        children: products.map((product) {
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: product.isExpired
-                  ? Colors.red
-                  : product.isExpiringSoon
-                      ? Colors.orange
-                      : Colors.green,
-              child: Icon(
-                product.isExpired
-                    ? Icons.warning
-                    : product.isExpiringSoon
-                        ? Icons.schedule
-                        : Icons.check,
-                color: Colors.white,
-                size: 20,
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 500),
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 4,
+              shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ExpansionTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        _getCategoryColor(category),
+                        _getCategoryColor(category).withOpacity(0.7)
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    _getCategoryEmoji(category),
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                ),
+                title: Text(
+                  category,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('${products.length} item${products.length != 1 ? 's' : ''}'),
+                children: products.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final product = entry.value;
+                  return TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    duration: Duration(milliseconds: 300 + (index * 100)),
+                    builder: (context, itemValue, child) {
+                      return Opacity(
+                        opacity: itemValue,
+                        child: Transform.translate(
+                          offset: Offset(20 * (1 - itemValue), 0),
+                          child: ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    product.isExpired
+                                        ? Colors.red
+                                        : product.isExpiringSoon
+                                            ? Colors.orange
+                                            : Colors.green,
+                                    (product.isExpired
+                                            ? Colors.red
+                                            : product.isExpiringSoon
+                                                ? Colors.orange
+                                                : Colors.green)
+                                        .withOpacity(0.7),
+                                  ],
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                product.isExpired
+                                    ? Icons.warning_amber_outlined
+                                    : product.isExpiringSoon
+                                        ? Icons.schedule_outlined
+                                        : Icons.check_circle_outline,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                            title: Text(product.name,
+                                style: const TextStyle(fontWeight: FontWeight.w500)),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (product.expiryDate != null)
+                                  Text(
+                                    'Expires: ${_formatDate(product.expiryDate!)} (${product.daysUntilExpiry} days)',
+                                    style: TextStyle(
+                                      color: product.isExpired
+                                          ? Colors.red
+                                          : product.isExpiringSoon
+                                              ? Colors.orange
+                                              : Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                if (product.purchaseDate != null)
+                                  Text(
+                                    'Purchased: ${_formatDate(product.purchaseDate!)}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.info_outlined,
+                                      color: Theme.of(context).colorScheme.primary),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ProductDetailScreen(product: product),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  onPressed: () => _deleteProduct(context, product),
+                                ),
+                              ],
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ProductDetailScreen(product: product),
+                                ),
+                              );
+                            },
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
               ),
             ),
-            title: Text(product.name),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (product.expiryDate != null)
-                  Text(
-                    'Expires: ${_formatDate(product.expiryDate!)} (${product.daysUntilExpiry} days)',
-                    style: TextStyle(
-                      color: product.isExpired
-                          ? Colors.red
-                          : product.isExpiringSoon
-                              ? Colors.orange
-                              : Colors.grey,
-                      fontSize: 12,
-                    ),
-                  ),
-                if (product.purchaseDate != null)
-                  Text(
-                    'Purchased: ${_formatDate(product.purchaseDate!)}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.info_outline),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(product: product),
-                      ),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => _deleteProduct(context, product),
-                ),
-              ],
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductDetailScreen(product: product),
-                ),
-              );
-            },
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -1006,6 +1076,35 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
+  String _getCategoryEmoji(String category) {
+    switch (category.toLowerCase()) {
+      case 'dairy':
+        return '🥛';
+      case 'meat':
+        return '🍖';
+      case 'fruits':
+        return '🍎';
+      case 'vegetables':
+        return '🥕';
+      case 'bakery':
+        return '🍞';
+      case 'grains':
+        return '🌾';
+      case 'beverages':
+        return '🥤';
+      case 'snacks':
+        return '🍿';
+      case 'frozen foods':
+        return '🧊';
+      case 'condiments':
+        return '🧂';
+      case 'nuts':
+        return '🥜';
+      default:
+        return '📦';
+    }
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
   }
@@ -1030,28 +1129,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Set up your initial inventory to get started',
+            'Add items using the + button below',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey,
             ),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const InitialInventorySetupScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Set Up Inventory'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
           ),
         ],
       ),
