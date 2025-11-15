@@ -26,6 +26,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool _isProcessing = false;
   final Uuid _uuid = const Uuid();
 
+  bool _isLiquidCategory(String category) {
+    final cat = category.toLowerCase();
+    return cat == 'beverages' ||
+        cat.contains('milk') ||
+        cat.contains('juice') ||
+        cat.contains('drink') ||
+        cat.contains('beverage') ||
+        cat.contains('liquid');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -222,14 +232,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   void _showProductDialog(Product product, {Map<String, dynamic>? nutrition}) {
     final quantityController = TextEditingController(text: '1');
+    final actualWeightController = TextEditingController(text: '100');
     final caloriesController =
         TextEditingController(text: nutrition?['calories']?.toString() ?? '');
     final proteinController = TextEditingController(text: nutrition?['protein']?.toString() ?? '');
     final fatController = TextEditingController(text: nutrition?['fat']?.toString() ?? '');
     final carbsController =
         TextEditingController(text: nutrition?['carbohydrates']?.toString() ?? '');
-    final fiberController = TextEditingController();
+    final fiberController = TextEditingController(text: nutrition?['fiber']?.toString() ?? '');
     DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    String selectedCategory = product.category;
 
     final categories = [
       'Fruits & Vegetables',
@@ -317,7 +329,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     }).toList(),
                     onChanged: (value) {
                       if (value != null) {
-                        setState(() => product.category = value);
+                        setState(() {
+                          product.category = value;
+                          selectedCategory = value;
+                        });
                       }
                     },
                   ),
@@ -328,6 +343,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Quantity',
                       border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: actualWeightController,
+                    decoration: InputDecoration(
+                      labelText:
+                          'Actual weight per unit (${_isLiquidCategory(selectedCategory) ? 'ml' : 'g'})',
+                      border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -350,9 +375,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Nutrition Information (per 100g) - Edit if needed',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Text(
+                    'Nutrition Information (per 100${_isLiquidCategory(selectedCategory) ? 'ml' : 'g'}) - Edit if needed',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -436,7 +461,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       'Other',
                     ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                     onChanged: (v) {
-                      if (v != null) product.category = v;
+                      if (v != null) {
+                        setState(() {
+                          product.category = v;
+                          selectedCategory = v;
+                        });
+                      }
                     },
                   ),
                   const SizedBox(height: 24),
@@ -450,6 +480,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () async {
+                          final quantity = double.tryParse(quantityController.text) ?? 1.0;
+                          final actualWeightPerUnit =
+                              double.tryParse(actualWeightController.text) ?? 100.0;
+                          final totalActualWeight = actualWeightPerUnit * quantity;
+                          final weightMultiplier = totalActualWeight / 100.0;
+
                           // Create nutrition info if any fields are filled
                           NutritionInfo? nutritionInfo;
                           if (caloriesController.text.isNotEmpty ||
@@ -458,11 +494,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
                               carbsController.text.isNotEmpty ||
                               fiberController.text.isNotEmpty) {
                             nutritionInfo = NutritionInfo(
-                              calories: double.tryParse(caloriesController.text) ?? 0.0,
-                              protein: double.tryParse(proteinController.text) ?? 0.0,
-                              fat: double.tryParse(fatController.text) ?? 0.0,
-                              carbs: double.tryParse(carbsController.text) ?? 0.0,
-                              fiber: double.tryParse(fiberController.text) ?? 0.0,
+                              calories: (double.tryParse(caloriesController.text) ?? 0.0) *
+                                  weightMultiplier,
+                              protein: (double.tryParse(proteinController.text) ?? 0.0) *
+                                  weightMultiplier,
+                              fat: (double.tryParse(fatController.text) ?? 0.0) * weightMultiplier,
+                              carbs:
+                                  (double.tryParse(carbsController.text) ?? 0.0) * weightMultiplier,
+                              fiber:
+                                  (double.tryParse(fiberController.text) ?? 0.0) * weightMultiplier,
                             );
                           }
 
@@ -470,14 +510,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             id: product.id,
                             name: product.name,
                             barcode: product.barcode,
-                            category: product.category,
+                            category: selectedCategory,
                             brand: product.brand,
                             imageUrl: product.imageUrl,
-                            quantity: double.tryParse(quantityController.text) ?? 1.0,
-                            unit: product.unit,
+                            quantity: quantity,
+                            unit: _isLiquidCategory(selectedCategory) ? 'ml' : 'g',
                             purchaseDate: DateTime.now(),
                             expiryDate: selectedDate,
                             nutritionInfo: nutritionInfo,
+                            actualWeight: totalActualWeight,
                           );
 
                           await context.read<InventoryProvider>().addProduct(updatedProduct);
@@ -629,23 +670,19 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Product Information',
+                    'Nutrition Information',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Nutrition Information (per 100g/ml)',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildShoppingListNutritionDisplay(shoppingItem),
+                  _buildShoppingListNutritionDisplay(shoppingItem, isTotal: false),
                   const SizedBox(height: 12),
                   const Text(
                     'Total Nutrition (based on quantity)',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
-                  _buildShoppingListNutritionDisplay(shoppingItem, quantity: quantity),
+                  _buildShoppingListNutritionDisplay(shoppingItem,
+                      quantity: quantity, isTotal: true),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -659,6 +696,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         onPressed: () async {
                           // Calculate nutrition based on shopping item
                           NutritionInfo? nutritionInfo;
+
+                          // Get actual weight per unit
+                          final actualWeightPerUnit =
+                              shoppingItem['ActualWeight']?.toDouble() ?? 100.0;
+                          final totalActualWeight = actualWeightPerUnit * quantity;
+
                           if (shoppingItem['Calories'] != null ||
                               shoppingItem['Protein'] != null ||
                               shoppingItem['Fat'] != null ||
@@ -671,10 +714,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             final baseCarbs = shoppingItem['Carbs']?.toDouble() ?? 0.0;
                             final baseFiber = shoppingItem['Fiber']?.toDouble() ?? 0.0;
 
-                            // Get actual weight per unit
-                            final actualWeightPerUnit =
-                                shoppingItem['ActualWeight']?.toDouble() ?? 100.0;
-                            final totalActualWeight = actualWeightPerUnit * quantity;
                             final weightMultiplier = totalActualWeight / 100.0;
 
                             nutritionInfo = NutritionInfo(
@@ -695,7 +734,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             quantity: quantity,
                             unit: shoppingItem['Unit'] ??
                                 (selectedCategory.toLowerCase() == 'beverages' ? 'ml' : 'g'),
-                            actualWeight: shoppingItem['ActualWeight']?.toDouble(),
+                            actualWeight: totalActualWeight,
                             purchaseDate: DateTime.now(),
                             expiryDate: selectedDate,
                             nutritionInfo: nutritionInfo,
@@ -725,38 +764,30 @@ class _ScannerScreenState extends State<ScannerScreen> {
     );
   }
 
-  Widget _buildShoppingListNutritionDisplay(Map<String, dynamic> item, {double quantity = 1.0}) {
+  Widget _buildShoppingListNutritionDisplay(Map<String, dynamic> item,
+      {double quantity = 1.0, bool isTotal = false}) {
     final calories = item['Calories']?.toDouble() ?? 0.0;
     final protein = item['Protein']?.toDouble() ?? 0.0;
     final fat = item['Fat']?.toDouble() ?? 0.0;
     final carbs = item['Carbs']?.toDouble() ?? 0.0;
     final fiber = item['Fiber']?.toDouble() ?? 0.0;
 
-    // Get actual weight per unit
-    final actualWeightPerUnit = item['ActualWeight']?.toDouble() ?? 100.0;
-    final totalActualWeight = actualWeightPerUnit * quantity;
-    final weightMultiplier = totalActualWeight / 100.0;
+    double multiplier = 1.0;
+    if (isTotal) {
+      final actualWeightPerUnit = item['ActualWeight']?.toDouble() ?? 100.0;
+      final totalActualWeight = actualWeightPerUnit * quantity;
+      multiplier = totalActualWeight / 100.0;
+    }
 
     return Column(
       children: [
         Row(
           children: [
             Expanded(
-              child: _buildNutritionItem('Calories', calories * weightMultiplier, 'kcal'),
+              child: _buildNutritionItem('Calories', calories * multiplier, 'kcal'),
             ),
             Expanded(
-              child: _buildNutritionItem('Protein', protein * weightMultiplier, 'g'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildNutritionItem('Fat', fat * weightMultiplier, 'g'),
-            ),
-            Expanded(
-              child: _buildNutritionItem('Carbs', carbs * weightMultiplier, 'g'),
+              child: _buildNutritionItem('Protein', protein * multiplier, 'g'),
             ),
           ],
         ),
@@ -764,7 +795,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
         Row(
           children: [
             Expanded(
-              child: _buildNutritionItem('Fiber', fiber * weightMultiplier, 'g'),
+              child: _buildNutritionItem('Fat', fat * multiplier, 'g'),
+            ),
+            Expanded(
+              child: _buildNutritionItem('Carbs', carbs * multiplier, 'g'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildNutritionItem('Fiber', fiber * multiplier, 'g'),
             ),
             const Expanded(child: SizedBox()),
           ],

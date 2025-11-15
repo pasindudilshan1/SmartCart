@@ -462,6 +462,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ? () async {
                       // Calculate nutrition based on selected product
                       NutritionInfo? nutritionInfo;
+
+                      // Get actual weight per unit
+                      final actualWeightPerUnit = isLooseItem
+                          ? (selectedProduct!['ActualWeight']?.toDouble() ?? 1.0)
+                          : ((selectedProduct!['Quantity'] ?? 1.0) !=
+                                  (selectedProduct!['ActualWeight'] ?? 100.0))
+                              ? ((selectedProduct!['ActualWeight'] ?? 100.0) *
+                                      (selectedProduct!['Quantity'] ?? 1.0))
+                                  .toDouble()
+                              : (selectedProduct!['ActualWeight'] ?? 100.0).toDouble();
+                      final totalActualWeight = actualWeightPerUnit * quantity;
+
                       if ((selectedProduct!['Calories'] ?? selectedProduct!['calories']) != null ||
                           (selectedProduct!['Protein'] ?? selectedProduct!['protein']) != null ||
                           (selectedProduct!['Fat'] ?? selectedProduct!['fat']) != null ||
@@ -484,18 +496,49 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 .toDouble();
 
                         // Get actual weight per unit
-                        final actualWeightPerUnit = selectedProduct!['ActualWeight']?.toDouble() ??
-                            (isLooseItem ? 1.0 : 100.0);
+                        final actualWeightPerUnit = isLooseItem
+                            ? (selectedProduct!['ActualWeight']?.toDouble() ?? 1.0)
+                            : ((selectedProduct!['Quantity'] ?? 1.0) !=
+                                    (selectedProduct!['ActualWeight'] ?? 100.0))
+                                ? ((selectedProduct!['ActualWeight'] ?? 100.0) *
+                                        (selectedProduct!['Quantity'] ?? 1.0))
+                                    .toDouble()
+                                : (selectedProduct!['ActualWeight'] ?? 100.0).toDouble();
                         final totalActualWeight = actualWeightPerUnit * quantity;
-                        final weightMultiplier = totalActualWeight / 100.0;
 
-                        nutritionInfo = NutritionInfo(
-                          calories: baseCalories * weightMultiplier,
-                          protein: baseProtein * weightMultiplier,
-                          fat: baseFat * weightMultiplier,
-                          carbs: baseCarbs * weightMultiplier,
-                          fiber: baseFiber * weightMultiplier,
-                        );
+                        if ((selectedProduct!['Calories'] ?? selectedProduct!['calories']) !=
+                                null ||
+                            (selectedProduct!['Protein'] ?? selectedProduct!['protein']) != null ||
+                            (selectedProduct!['Fat'] ?? selectedProduct!['fat']) != null ||
+                            (selectedProduct!['Carbs'] ?? selectedProduct!['carbs']) != null ||
+                            (selectedProduct!['Fiber'] ?? selectedProduct!['fiber']) != null) {
+                          // Get base values (per 100g/ml)
+                          final baseCalories =
+                              (selectedProduct!['Calories'] ?? selectedProduct!['calories'] ?? 0.0)
+                                  .toDouble();
+                          final baseProtein =
+                              (selectedProduct!['Protein'] ?? selectedProduct!['protein'] ?? 0.0)
+                                  .toDouble();
+                          final baseFat =
+                              (selectedProduct!['Fat'] ?? selectedProduct!['fat'] ?? 0.0)
+                                  .toDouble();
+                          final baseCarbs =
+                              (selectedProduct!['Carbs'] ?? selectedProduct!['carbs'] ?? 0.0)
+                                  .toDouble();
+                          final baseFiber =
+                              (selectedProduct!['Fiber'] ?? selectedProduct!['fiber'] ?? 0.0)
+                                  .toDouble();
+
+                          final weightMultiplier = totalActualWeight / 100.0;
+
+                          nutritionInfo = NutritionInfo(
+                            calories: baseCalories * weightMultiplier,
+                            protein: baseProtein * weightMultiplier,
+                            fat: baseFat * weightMultiplier,
+                            carbs: baseCarbs * weightMultiplier,
+                            fiber: baseFiber * weightMultiplier,
+                          );
+                        }
                       }
 
                       final product = Product(
@@ -512,9 +555,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             selectedProduct!['unit'] ??
                             (_isLiquidCategory(selectedCategory) ? 'ml' : 'g'),
                         category: selectedCategory,
-                        actualWeight: selectedProduct!['ActualWeight'] ??
-                            selectedProduct!['actualWeight']?.toDouble() ??
-                            (isLooseItem ? 1.0 : null),
+                        actualWeight: totalActualWeight,
                         purchaseDate: DateTime.now(),
                         nutritionInfo: nutritionInfo,
                         brand: selectedProduct!['Brand'] ?? selectedProduct!['brand'],
@@ -883,7 +924,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Qty: ${product.quantity} ${product.unit}'),
                 if (product.expiryDate != null)
                   Text(
                     'Expires: ${_formatDate(product.expiryDate!)} (${product.daysUntilExpiry} days)',

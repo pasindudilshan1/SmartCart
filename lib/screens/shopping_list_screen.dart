@@ -381,7 +381,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
         'Unknown Product';
     final category = item['Category'] ?? item['category'] ?? 'Other';
     final brand = item['Brand'] ?? item['brand'] ?? '';
-    final price = (item['Price'] ?? item['price'] ?? 0.0).toDouble();
     final quantity = (item['Quantity'] ?? item['quantity'] ?? 1.0).toDouble();
     final unit = item['Unit'] ?? item['unit'] ?? 'pcs';
 
@@ -407,7 +406,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
               style: TextStyle(color: Colors.grey.shade600),
             ),
             Text(
-              '$quantity $unit${price > 0 ? ' • \$${price.toStringAsFixed(2)}' : ''}',
+              category.toLowerCase() == 'beverages' ? '1 bottle' : '$quantity $unit',
               style: TextStyle(color: Colors.grey.shade600),
             ),
           ],
@@ -488,9 +487,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
       // For Beverages: ActualWeight in table is stored in ml (per unit)
       // For Others: ActualWeight in table is stored in grams (per unit)
       final isLooseItem = item['main_category'] == 'Loose Items';
-      final actualWeightPerUnit =
-          (item['ActualWeight'] ?? item['actualWeight'] ?? (isLooseItem ? 1.0 : 100.0))
-              .toDouble(); // in grams or ml per unit
+      final actualWeightPerUnit = isLooseItem
+          ? (item['ActualWeight'] ?? item['actualWeight'] ?? 1.0).toDouble()
+          : ((item['Quantity'] ?? 1.0) != (item['ActualWeight'] ?? 100.0))
+              ? ((item['ActualWeight'] ?? 100.0) * (item['Quantity'] ?? 1.0)).toDouble()
+              : (item['ActualWeight'] ?? 100.0).toDouble();
       final totalActualWeight =
           actualWeightPerUnit * quantity; // total = weight per unit × user quantity
 
@@ -519,10 +520,10 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
         barcode: item['Barcode'] ?? item['barcode'],
         category: category,
         brand: item['Brand'] ?? item['brand'],
-        quantity: quantity,
+        quantity: isLooseItem ? quantity : 1.0,
         unit: item['Unit'] ?? item['unit'] ?? (isBeverage ? 'ml' : 'g'),
-        actualWeight: totalActualWeight > 0 ? totalActualWeight : null,
-        price: (item['Price'] ?? item['price'])?.toDouble(),
+        actualWeight: isLooseItem ? totalActualWeight : actualWeightPerUnit,
+        price: null,
         imageUrl: item['ImageUrl'] ?? item['imageUrl'],
         storageLocation: item['StorageLocation'] ?? item['storageLocation'],
         purchaseDate: DateTime.now(),
@@ -537,8 +538,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
                 sugar: calculatedSugar,
                 sodium: calculatedSodium,
                 servingSize: isBeverage
-                    ? '${totalActualWeight.toStringAsFixed(0)}ml (total)'
-                    : '${totalActualWeight.toStringAsFixed(0)}g (total)',
+                    ? '${(isLooseItem ? totalActualWeight : actualWeightPerUnit).toStringAsFixed(0)}ml'
+                    : '${(isLooseItem ? totalActualWeight : actualWeightPerUnit).toStringAsFixed(0)}g',
               )
             : null,
       );
@@ -685,7 +686,6 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
         'Unknown Product';
     final category = item['Category'] ?? item['category'] ?? 'Other';
     final brand = item['Brand'] ?? item['brand'] ?? '';
-    final price = (item['Price'] ?? item['price'] ?? 0.0).toDouble();
     final unit = item['Unit'] ?? item['unit'] ?? (_isLiquidCategory(category) ? 'ml' : 'g');
     final barcode = item['Barcode'] ?? item['barcode'] ?? '';
     final storageLocation = item['StorageLocation'] ?? item['storageLocation'] ?? '';
@@ -827,8 +827,6 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
                 _buildInfoSection('Current Inventory', [
                   _buildInfoRow('Quantity in Inventory',
                       '${currentInventoryQuantity.toStringAsFixed(1)} $unit'),
-                  _buildInfoRow(
-                      'Total Calories', '${currentInventoryCalories.toStringAsFixed(0)} kcal'),
                 ]),
                 const SizedBox(height: 16),
                 _buildInfoSection('Current Inventory Nutrition', [
@@ -844,8 +842,10 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
               // Basic Info
               _buildInfoSection('Basic Information', [
                 _buildInfoRow('Category', category),
+                if (!isLooseItem)
+                  _buildInfoRow(isBeverage ? 'Per Bottle' : 'Per Pack',
+                      '${actualWeightPerUnit.toStringAsFixed(0)} ${isBeverage ? 'ml' : 'g'}'),
                 if (barcode.isNotEmpty) _buildInfoRow('Barcode', barcode),
-                if (price > 0) _buildInfoRow('Price', '\$${price.toStringAsFixed(2)}'),
                 if (storageLocation.isNotEmpty) _buildInfoRow('Storage', storageLocation),
               ]),
 
