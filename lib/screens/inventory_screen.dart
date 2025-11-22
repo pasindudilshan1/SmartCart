@@ -917,17 +917,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        _getCategoryColor(category),
-                        _getCategoryColor(category).withOpacity(0.7)
-                      ],
-                    ),
+                    color: _getCategoryColor(category).withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: Text(
-                    _getCategoryEmoji(category),
-                    style: const TextStyle(fontSize: 20),
+                  child: Icon(
+                    _getCategoryIconForHeader(category),
+                    color: _getCategoryColor(category),
+                    size: 26,
                   ),
                 ),
                 title: Text(
@@ -950,31 +946,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             leading: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    product.isExpired
-                                        ? Colors.red
-                                        : product.isExpiringSoon
-                                            ? Colors.orange
-                                            : Colors.green,
-                                    (product.isExpired
-                                            ? Colors.red
-                                            : product.isExpiringSoon
-                                                ? Colors.orange
-                                                : Colors.green)
-                                        .withOpacity(0.7),
-                                  ],
-                                ),
+                                color: _getProductIconColor(product.name, product.category)
+                                    .withOpacity(0.2),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
-                                product.isExpired
-                                    ? Icons.warning_amber_outlined
-                                    : product.isExpiringSoon
-                                        ? Icons.schedule_outlined
-                                        : Icons.check_circle_outline,
-                                color: Colors.white,
-                                size: 20,
+                                _getProductIcon(product.name, product.category),
+                                color: _getProductIconColor(product.name, product.category),
+                                size: 26,
                               ),
                             ),
                             title: Text(product.name,
@@ -1050,29 +1029,29 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
       case 'dairy':
-        return Colors.blue;
+        return Colors.blue.shade600;
       case 'meat':
-        return Colors.red;
+        return Colors.red.shade700;
       case 'fruits':
-        return Colors.orange;
+        return Colors.orange.shade700;
       case 'vegetables':
-        return Colors.green;
+        return Colors.green.shade700;
       case 'bakery':
-        return Colors.brown;
+        return Colors.brown.shade700;
       case 'grains':
-        return Colors.amber;
+        return Colors.amber.shade700;
       case 'beverages':
-        return Colors.cyan;
+        return Colors.cyan.shade700;
       case 'snacks':
-        return Colors.purple;
+        return Colors.purple.shade600;
       case 'frozen foods':
-        return Colors.lightBlue;
+        return Colors.lightBlue.shade700;
       case 'condiments':
-        return Colors.deepOrange;
+        return Colors.deepOrange.shade700;
       case 'nuts':
-        return Colors.deepPurple;
+        return Colors.brown.shade600;
       default:
-        return Colors.grey;
+        return Colors.grey.shade700;
     }
   }
 
@@ -1103,6 +1082,384 @@ class _InventoryScreenState extends State<InventoryScreen> {
       default:
         return '📦';
     }
+  }
+
+  IconData _getCategoryIconForHeader(String category) {
+    switch (category.toLowerCase()) {
+      case 'dairy':
+        return Icons.local_drink;
+      case 'meat':
+        return Icons.dinner_dining;
+      case 'fruits':
+        return Icons.apple;
+      case 'vegetables':
+        return Icons.yard;
+      case 'bakery':
+        return Icons.bakery_dining;
+      case 'grains':
+        return Icons.grain;
+      case 'beverages':
+        return Icons.local_bar;
+      case 'snacks':
+        return Icons.cookie;
+      case 'frozen foods':
+        return Icons.ac_unit;
+      case 'condiments':
+        return Icons.water_drop;
+      case 'nuts':
+        return Icons.scatter_plot;
+      default:
+        return Icons.shopping_basket;
+    }
+  }
+
+  IconData _getProductIcon(String productName, String category) {
+    final name = productName.toLowerCase();
+
+    // Fruits
+    if (name.contains('apple')) return Icons.apple;
+    if (name.contains('banana')) return Icons.deck;
+    if (name.contains('orange')) return Icons.circle;
+    if (name.contains('grape')) return Icons.bubble_chart;
+    if (name.contains('lemon')) return Icons.wb_sunny;
+    if (name.contains('lime')) return Icons.brightness_5;
+    if (name.contains('strawberry')) return Icons.favorite;
+    if (name.contains('blueberry')) return Icons.circle_outlined;
+    if (name.contains('peach')) return Icons.spa;
+    if (name.contains('pear')) return Icons.lightbulb;
+    if (name.contains('pineapple')) return Icons.forest;
+    if (name.contains('watermelon')) return Icons.pie_chart;
+    if (name.contains('cherry')) return Icons.favorite_border;
+    if (name.contains('kiwi')) return Icons.eco;
+    if (name.contains('mango')) return Icons.water_drop;
+    if (name.contains('papaya')) return Icons.park;
+    if (name.contains('plum')) return Icons.circle;
+    if (name.contains('avocado')) return Icons.egg_alt;
+    if (name.contains('berry')) return Icons.blur_circular;
+    if (name.contains('coconut')) return Icons.sports_basketball;
+    if (name.contains('fruit')) return Icons.yard;
+
+    // Vegetables
+    if (name.contains('carrot')) return Icons.agriculture;
+    if (name.contains('potato')) return Icons.egg;
+    if (name.contains('onion')) return Icons.circle;
+    if (name.contains('tomato')) return Icons.circle;
+    if (name.contains('cucumber')) return Icons.science;
+    if (name.contains('pepper')) return Icons.whatshot;
+    if (name.contains('broccoli')) return Icons.park;
+    if (name.contains('spinach')) return Icons.grass;
+    if (name.contains('lettuce')) return Icons.eco;
+    if (name.contains('salad')) return Icons.eco;
+    if (name.contains('cabbage')) return Icons.layers;
+    if (name.contains('celery')) return Icons.segment;
+    if (name.contains('zucchini')) return Icons.straighten;
+    if (name.contains('eggplant')) return Icons.egg;
+    if (name.contains('garlic')) return Icons.grain;
+    if (name.contains('ginger')) return Icons.spa;
+    if (name.contains('corn')) return Icons.grain;
+    if (name.contains('mushroom')) return Icons.beach_access;
+    if (name.contains('bean')) return Icons.grain;
+    if (name.contains('pea')) return Icons.circle;
+    if (name.contains('vegetable')) return Icons.yard;
+
+    // Dairy
+    if (name.contains('milk')) return Icons.local_drink;
+    if (name.contains('cheese')) return Icons.square;
+    if (name.contains('yogurt')) return Icons.set_meal;
+    if (name.contains('butter')) return Icons.square_rounded;
+    if (name.contains('cream')) return Icons.waves;
+    if (name.contains('ice cream')) return Icons.icecream;
+    if (name.contains('icecream')) return Icons.icecream;
+
+    // Meat & Protein
+    if (name.contains('chicken')) return Icons.egg_alt;
+    if (name.contains('beef')) return Icons.restaurant_menu;
+    if (name.contains('pork')) return Icons.restaurant_menu;
+    if (name.contains('fish')) return Icons.set_meal;
+    if (name.contains('meat')) return Icons.dinner_dining;
+    if (name.contains('sausage')) return Icons.fastfood;
+    if (name.contains('bacon')) return Icons.waves;
+    if (name.contains('turkey')) return Icons.egg_alt;
+    if (name.contains('lamb')) return Icons.restaurant_menu;
+    if (name.contains('shrimp')) return Icons.water;
+    if (name.contains('salmon')) return Icons.water;
+    if (name.contains('tuna')) return Icons.water;
+    if (name.contains('crab')) return Icons.pest_control;
+    if (name.contains('lobster')) return Icons.pest_control;
+
+    // Bakery
+    if (name.contains('bread')) return Icons.bakery_dining;
+    if (name.contains('bagel')) return Icons.donut_small;
+    if (name.contains('croissant')) return Icons.bakery_dining;
+    if (name.contains('cake')) return Icons.cake;
+    if (name.contains('pie')) return Icons.pie_chart;
+    if (name.contains('cookie')) return Icons.cookie;
+    if (name.contains('muffin')) return Icons.bakery_dining;
+    if (name.contains('donut')) return Icons.donut_large;
+    if (name.contains('biscuit')) return Icons.circle;
+    if (name.contains('cracker')) return Icons.crop_square;
+    if (name.contains('waffle')) return Icons.grid_on;
+    if (name.contains('pancake')) return Icons.layers;
+
+    // Beverages
+    if (name.contains('water')) return Icons.water_drop;
+    if (name.contains('juice')) return Icons.local_drink;
+    if (name.contains('soda')) return Icons.local_bar;
+    if (name.contains('coffee')) return Icons.local_cafe;
+    if (name.contains('tea')) return Icons.emoji_food_beverage;
+    if (name.contains('beer')) return Icons.sports_bar;
+    if (name.contains('wine')) return Icons.wine_bar;
+    if (name.contains('whiskey')) return Icons.liquor;
+    if (name.contains('vodka')) return Icons.liquor;
+    if (name.contains('energy drink')) return Icons.flash_on;
+    if (name.contains('smoothie')) return Icons.blender;
+    if (name.contains('milkshake')) return Icons.icecream;
+
+    // Snacks
+    if (name.contains('chips')) return Icons.set_meal;
+    if (name.contains('candy')) return Icons.star;
+    if (name.contains('chocolate')) return Icons.square;
+    if (name.contains('snack')) return Icons.fastfood;
+    if (name.contains('nuts')) return Icons.scatter_plot;
+    if (name.contains('popcorn')) return Icons.bubble_chart;
+    if (name.contains('pretzel')) return Icons.all_inclusive;
+    if (name.contains('granola')) return Icons.grain;
+
+    // Grains & Pasta
+    if (name.contains('rice')) return Icons.rice_bowl;
+    if (name.contains('pasta')) return Icons.ramen_dining;
+    if (name.contains('noodle')) return Icons.ramen_dining;
+    if (name.contains('spaghetti')) return Icons.ramen_dining;
+    if (name.contains('grain')) return Icons.grain;
+    if (name.contains('cereal')) return Icons.breakfast_dining;
+    if (name.contains('oat')) return Icons.grain;
+    if (name.contains('quinoa')) return Icons.scatter_plot;
+    if (name.contains('barley')) return Icons.grain;
+    if (name.contains('wheat')) return Icons.grass;
+
+    // Condiments & Sauces
+    if (name.contains('sauce')) return Icons.water_drop;
+    if (name.contains('ketchup')) return Icons.water_drop;
+    if (name.contains('mustard')) return Icons.water_drop;
+    if (name.contains('mayo')) return Icons.water_drop;
+    if (name.contains('dressing')) return Icons.local_drink;
+    if (name.contains('vinegar')) return Icons.science;
+    if (name.contains('honey')) return Icons.local_florist;
+    if (name.contains('jam')) return Icons.set_meal;
+    if (name.contains('jelly')) return Icons.set_meal;
+    if (name.contains('syrup')) return Icons.water_drop;
+
+    // Canned & Packaged
+    if (name.contains('can') || name.contains('canned') || name.contains('tin')) {
+      return Icons.inventory;
+    }
+    if (name.contains('soup')) return Icons.soup_kitchen;
+    if (name.contains('beans')) return Icons.set_meal;
+
+    // Frozen
+    if (name.contains('frozen')) return Icons.ac_unit;
+    if (name.contains('ice')) return Icons.ac_unit;
+
+    // Eggs
+    if (name.contains('egg')) return Icons.egg;
+
+    // Pizza & Fast Food
+    if (name.contains('pizza')) return Icons.local_pizza;
+    if (name.contains('burger')) return Icons.lunch_dining;
+    if (name.contains('hamburger')) return Icons.lunch_dining;
+    if (name.contains('hot dog')) return Icons.fastfood;
+    if (name.contains('sandwich')) return Icons.lunch_dining;
+    if (name.contains('taco')) return Icons.fastfood;
+    if (name.contains('burrito')) return Icons.fastfood;
+    if (name.contains('fries')) return Icons.fastfood;
+
+    // Cooking Essentials
+    if (name.contains('sugar')) return Icons.square;
+    if (name.contains('salt')) return Icons.grain;
+    if (name.contains('flour')) return Icons.square_rounded;
+    if (name.contains('oil')) return Icons.opacity;
+    if (name.contains('spice')) return Icons.eco;
+    if (name.contains('herb')) return Icons.local_florist;
+    if (name.contains('baking')) return Icons.bakery_dining;
+
+    // Fall back to category-based icons
+    switch (category.toLowerCase()) {
+      case 'dairy':
+        return Icons.local_drink;
+      case 'meat':
+        return Icons.dinner_dining;
+      case 'fruits':
+        return Icons.apple;
+      case 'vegetables':
+        return Icons.yard;
+      case 'bakery':
+        return Icons.bakery_dining;
+      case 'grains':
+        return Icons.grain;
+      case 'beverages':
+        return Icons.local_bar;
+      case 'snacks':
+        return Icons.cookie;
+      case 'frozen':
+      case 'frozen foods':
+        return Icons.ac_unit;
+      case 'canned':
+        return Icons.inventory;
+      case 'seafood':
+        return Icons.set_meal;
+      case 'condiments':
+        return Icons.water_drop;
+      case 'nuts':
+        return Icons.scatter_plot;
+      default:
+        return Icons.shopping_basket;
+    }
+  }
+
+  Color _getProductIconColor(String productName, String category) {
+    final name = productName.toLowerCase();
+
+    // Fruits
+    if (name.contains('apple')) return Colors.red.shade700;
+    if (name.contains('banana')) return Colors.yellow.shade700;
+    if (name.contains('orange')) return Colors.orange.shade700;
+    if (name.contains('grape')) return Colors.purple.shade600;
+    if (name.contains('lemon')) return Colors.yellow.shade600;
+    if (name.contains('lime')) return Colors.green.shade600;
+    if (name.contains('strawberry')) return Colors.red.shade600;
+    if (name.contains('blueberry')) return Colors.indigo.shade700;
+    if (name.contains('peach')) return Colors.orange.shade400;
+    if (name.contains('pear')) return Colors.green.shade400;
+    if (name.contains('pineapple')) return Colors.yellow.shade700;
+    if (name.contains('watermelon')) return Colors.red.shade400;
+    if (name.contains('cherry')) return Colors.red.shade800;
+    if (name.contains('kiwi')) return Colors.green.shade700;
+    if (name.contains('mango')) return Colors.orange.shade600;
+    if (name.contains('papaya')) return Colors.orange.shade400;
+    if (name.contains('plum')) return Colors.purple.shade700;
+    if (name.contains('avocado')) return Colors.green.shade800;
+    if (name.contains('berry')) return Colors.purple.shade600;
+    if (name.contains('coconut')) return Colors.brown.shade400;
+    if (name.contains('fruit')) return Colors.orange.shade600;
+
+    // Vegetables
+    if (name.contains('carrot')) return Colors.orange.shade700;
+    if (name.contains('potato')) return Colors.brown.shade400;
+    if (name.contains('onion')) return Colors.brown.shade300;
+    if (name.contains('tomato')) return Colors.red.shade600;
+    if (name.contains('cucumber')) return Colors.green.shade600;
+    if (name.contains('pepper')) return Colors.red.shade700;
+    if (name.contains('broccoli')) return Colors.green.shade700;
+    if (name.contains('spinach')) return Colors.green.shade800;
+    if (name.contains('lettuce')) return Colors.green.shade600;
+    if (name.contains('salad')) return Colors.green.shade600;
+    if (name.contains('cabbage')) return Colors.green.shade400;
+    if (name.contains('celery')) return Colors.green.shade700;
+    if (name.contains('zucchini')) return Colors.green.shade600;
+    if (name.contains('eggplant')) return Colors.purple.shade900;
+    if (name.contains('garlic')) return Colors.grey.shade100;
+    if (name.contains('ginger')) return Colors.brown.shade300;
+    if (name.contains('corn')) return Colors.yellow.shade700;
+    if (name.contains('mushroom')) return Colors.brown.shade400;
+    if (name.contains('bean')) return Colors.green.shade700;
+    if (name.contains('pea')) return Colors.green.shade600;
+    if (name.contains('vegetable')) return Colors.green.shade700;
+
+    // Dairy
+    if (name.contains('milk')) return Colors.blue.shade400;
+    if (name.contains('cheese')) return Colors.amber.shade700;
+    if (name.contains('yogurt')) return Colors.pink.shade200;
+    if (name.contains('butter')) return Colors.yellow.shade700;
+    if (name.contains('cream')) return Colors.blue.shade300;
+    if (name.contains('ice cream') || name.contains('icecream')) return Colors.pink.shade400;
+
+    // Meat & Protein
+    if (name.contains('chicken')) return Colors.orange.shade200;
+    if (name.contains('beef')) return Colors.red.shade900;
+    if (name.contains('pork')) return Colors.pink.shade300;
+    if (name.contains('fish')) return Colors.blue.shade400;
+    if (name.contains('meat')) return Colors.red.shade800;
+    if (name.contains('sausage')) return Colors.red.shade700;
+    if (name.contains('bacon')) return Colors.red.shade400;
+    if (name.contains('turkey')) return Colors.brown.shade300;
+    if (name.contains('lamb')) return Colors.red.shade900;
+    if (name.contains('shrimp')) return Colors.pink.shade400;
+    if (name.contains('salmon')) return Colors.orange.shade400;
+    if (name.contains('tuna')) return Colors.blue.shade700;
+    if (name.contains('crab')) return Colors.red.shade400;
+    if (name.contains('lobster')) return Colors.red.shade700;
+
+    // Bakery
+    if (name.contains('bread')) return Colors.brown.shade600;
+    if (name.contains('bagel')) return Colors.brown.shade500;
+    if (name.contains('croissant')) return Colors.brown.shade400;
+    if (name.contains('cake')) return Colors.pink.shade300;
+    if (name.contains('pie')) return Colors.brown.shade500;
+    if (name.contains('cookie')) return Colors.brown.shade600;
+    if (name.contains('muffin')) return Colors.brown.shade400;
+    if (name.contains('donut')) return Colors.pink.shade400;
+    if (name.contains('biscuit')) return Colors.brown.shade500;
+    if (name.contains('cracker')) return Colors.brown.shade300;
+    if (name.contains('waffle')) return Colors.amber.shade700;
+    if (name.contains('pancake')) return Colors.amber.shade600;
+
+    // Beverages
+    if (name.contains('water')) return Colors.blue.shade400;
+    if (name.contains('juice')) return Colors.orange.shade400;
+    if (name.contains('soda')) return Colors.red.shade400;
+    if (name.contains('coffee')) return Colors.brown.shade700;
+    if (name.contains('tea')) return Colors.brown.shade400;
+    if (name.contains('beer')) return Colors.amber.shade700;
+    if (name.contains('wine')) return Colors.purple.shade900;
+    if (name.contains('whiskey')) return Colors.amber.shade800;
+    if (name.contains('vodka')) return Colors.blue.shade200;
+    if (name.contains('energy drink')) return Colors.yellow.shade700;
+    if (name.contains('smoothie')) return Colors.purple.shade400;
+    if (name.contains('milkshake')) return Colors.pink.shade300;
+
+    // Snacks
+    if (name.contains('chips')) return Colors.amber.shade600;
+    if (name.contains('candy')) return Colors.pink.shade400;
+    if (name.contains('chocolate')) return Colors.brown.shade800;
+    if (name.contains('snack')) return Colors.orange.shade400;
+    if (name.contains('nuts')) return Colors.brown.shade500;
+    if (name.contains('popcorn')) return Colors.yellow.shade600;
+    if (name.contains('pretzel')) return Colors.brown.shade400;
+    if (name.contains('granola')) return Colors.brown.shade500;
+
+    // Grains & Pasta
+    if (name.contains('rice')) return Colors.brown.shade300;
+    if (name.contains('pasta')) return Colors.amber.shade400;
+    if (name.contains('noodle')) return Colors.amber.shade500;
+    if (name.contains('spaghetti')) return Colors.amber.shade400;
+    if (name.contains('grain')) return Colors.amber.shade700;
+    if (name.contains('cereal')) return Colors.brown.shade400;
+    if (name.contains('oat')) return Colors.brown.shade300;
+    if (name.contains('quinoa')) return Colors.brown.shade400;
+    if (name.contains('barley')) return Colors.amber.shade600;
+    if (name.contains('wheat')) return Colors.amber.shade700;
+
+    // Condiments & Sauces
+    if (name.contains('ketchup')) return Colors.red.shade700;
+    if (name.contains('mustard')) return Colors.yellow.shade700;
+    if (name.contains('mayo')) return Colors.yellow.shade100;
+    if (name.contains('sauce')) return Colors.red.shade600;
+    if (name.contains('dressing')) return Colors.green.shade400;
+    if (name.contains('vinegar')) return Colors.brown.shade300;
+    if (name.contains('honey')) return Colors.amber.shade600;
+    if (name.contains('jam')) return Colors.purple.shade400;
+    if (name.contains('jelly')) return Colors.purple.shade300;
+    if (name.contains('syrup')) return Colors.brown.shade600;
+
+    // Special items
+    if (name.contains('egg')) return Colors.amber.shade200;
+    if (name.contains('pizza')) return Colors.red.shade400;
+    if (name.contains('burger')) return Colors.brown.shade500;
+    if (name.contains('sandwich')) return Colors.brown.shade400;
+    if (name.contains('frozen')) return Colors.lightBlue.shade300;
+
+    // Default to category color
+    return _getCategoryColor(category);
   }
 
   String _formatDate(DateTime date) {

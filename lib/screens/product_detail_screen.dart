@@ -237,26 +237,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.2,
               children: [
-                _buildNutrientCard('Calories', nutrition.calories, 'kcal'),
-                _buildNutrientCard('Protein', nutrition.protein, 'g'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNutrientCard('Carbs', nutrition.carbs, 'g'),
-                _buildNutrientCard('Fat', nutrition.fat, 'g'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildNutrientCard('Fiber', nutrition.fiber, 'g'),
+                _buildNutrientCard('Calories', nutrition.calories, 'kcal',
+                    Icons.local_fire_department, Colors.orange),
+                _buildNutrientCard(
+                    'Protein', nutrition.protein, 'g', Icons.fitness_center, Colors.red),
+                _buildNutrientCard(
+                    'Carbs', nutrition.carbs, 'g', Icons.bakery_dining, Colors.amber),
+                _buildNutrientCard(
+                    'Fat', nutrition.fat, 'g', Icons.opacity, Colors.yellow.shade700),
+                _buildNutrientCard('Fiber', nutrition.fiber, 'g', Icons.grass, Colors.green),
               ],
             ),
           ],
@@ -265,26 +262,61 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget _buildNutrientCard(String label, double value, String unit) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
+  Widget _buildNutrientCard(String label, double value, String unit, IconData icon, Color color) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 2,
         ),
-        const SizedBox(height: 4),
-        Text(
-          value.toStringAsFixed(1),
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withOpacity(0.1),
+            color.withOpacity(0.05),
+          ],
         ),
-        Text(unit, style: const TextStyle(fontSize: 12)),
-      ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: color,
+              size: 24,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value.toStringAsFixed(1),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              unit,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

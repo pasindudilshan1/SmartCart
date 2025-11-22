@@ -139,7 +139,7 @@ class _HouseholdSetupScreenState extends State<HouseholdSetupScreen> {
       return;
     }
 
-    final clamped = parsed.clamp(1, 12);
+    final clamped = parsed.clamp(1, 5);
     if (clamped != _memberCount) {
       setState(() {
         _memberCount = clamped;

@@ -94,6 +94,15 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
   }
 
   void _addMember() {
+    if (_members.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Upgrade to premium to add more than 5 household members'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     // Show dialog to add new member
     showDialog(
       context: context,
@@ -125,6 +134,41 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
       _loadMembers(); // Reload to reflect changes
     } catch (e) {
       // Handle error
+    }
+  }
+
+  Future<void> _deleteMember(HouseholdMember member) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Member'),
+        content: Text(
+            'Are you sure you want to delete ${member.name ?? 'Member ${member.memberIndex}'}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final authService = Provider.of<AzureAuthService>(context, listen: false);
+      final userId = authService.currentUserId;
+
+      if (userId == null) return;
+
+      try {
+        await _azureTableService.deleteHouseholdMember(userId, member.memberIndex);
+        _loadMembers(); // Reload to reflect changes
+      } catch (e) {
+        // Handle error
+      }
     }
   }
 
@@ -263,105 +307,203 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
 
   Widget _buildMemberCard(HouseholdMember member, int index) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 4,
-      shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.2),
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 3,
+      shadowColor: Colors.black.withOpacity(0.1),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: _getAgeGroupColors(member.ageGroup)[0].withOpacity(0.3),
+          width: 2,
+        ),
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
-              Theme.of(context).colorScheme.surface,
-              Theme.of(context).colorScheme.surface.withOpacity(0.9),
+              Colors.white,
+              _getAgeGroupColors(member.ageGroup)[0].withOpacity(0.03),
             ],
           ),
         ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          leading: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: _getAgeGroupColors(member.ageGroup),
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _getAgeGroupIcon(member.ageGroup),
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          title: Text(
-            member.name ?? 'Member ${member.memberIndex}',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          subtitle: Column(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 4),
-              Text(
-                'Age Group: ${member.ageGroup}',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
+              // Header with avatar and actions
+              Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: _getAgeGroupColors(member.ageGroup),
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: _getAgeGroupColors(member.ageGroup)[0].withOpacity(0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _getAgeGroupIcon(member.ageGroup),
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          member.name ?? 'Member ${member.memberIndex}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getAgeGroupColors(member.ageGroup)[0].withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            member.ageGroup,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _getAgeGroupColors(member.ageGroup)[1],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.edit_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 22,
+                      ),
+                      onPressed: () => _editMember(member),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.delete_rounded,
+                        color: Colors.red,
+                        size: 22,
+                      ),
+                      onPressed: () => _deleteMember(member),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Nutrition information section
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.grey.shade200,
+                    width: 1,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _buildNutrientChip('🔥', '${member.dailyCalories.toInt()} kcal'),
-                  const SizedBox(width: 8),
-                  _buildNutrientChip('🥩', '${member.dailyProtein.toInt()}g'),
-                  const SizedBox(width: 8),
-                  _buildNutrientChip('🥑', '${member.dailyFat.toInt()}g'),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  _buildNutrientChip('🍞', '${member.dailyCarbs.toInt()}g'),
-                  const SizedBox(width: 8),
-                  _buildNutrientChip('🥦', '${member.dailyFiber.toInt()}g'),
-                ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.restaurant_menu,
+                          size: 18,
+                          color: Colors.grey.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Daily Nutrition Goals',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildNutrientChip(
+                            '🔥', '${member.dailyCalories.toInt()} kcal', Colors.orange),
+                        _buildNutrientChip('🥩', '${member.dailyProtein.toInt()}g', Colors.red),
+                        _buildNutrientChip('🍞', '${member.dailyCarbs.toInt()}g', Colors.amber),
+                        _buildNutrientChip(
+                            '🥑', '${member.dailyFat.toInt()}g', Colors.yellow.shade700),
+                        _buildNutrientChip('🥦', '${member.dailyFiber.toInt()}g', Colors.green),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          trailing: IconButton(
-            icon: Icon(Icons.edit_outlined, color: Theme.of(context).colorScheme.primary),
-            onPressed: () => _editMember(member),
-          ),
-          onTap: () => _editMember(member),
         ),
       ),
     );
   }
 
-  Widget _buildNutrientChip(String emoji, String value) {
+  Widget _buildNutrientChip(String emoji, String value, [Color? color]) {
+    final chipColor = color ?? Theme.of(context).colorScheme.primary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        color: chipColor.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: chipColor.withOpacity(0.3),
+          width: 1.5,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 12)),
-          const SizedBox(width: 4),
+          Text(emoji, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 6),
           Text(
             value,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: chipColor.withOpacity(0.9),
             ),
           ),
         ],
@@ -927,7 +1069,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                       TextFormField(
                         initialValue: _name,
                         decoration: InputDecoration(
-                          labelText: 'Name (Optional)',
+                          labelText: 'Name',
                           prefixIcon: const Icon(Icons.person_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -935,7 +1077,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                           filled: true,
                           fillColor: Theme.of(context).colorScheme.surface.withOpacity(0.8),
                         ),
-                        onChanged: (value) => _name = value.isEmpty ? null : value,
+                        onChanged: (value) => _name = value,
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
@@ -1105,6 +1247,12 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                   const SizedBox(width: 12),
                   ElevatedButton(
                     onPressed: () {
+                      if (_name == null || _name!.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Name is required')),
+                        );
+                        return;
+                      }
                       // Calculate next member index
                       final memberIndex = (widget.existingMembers.isEmpty
                               ? 0

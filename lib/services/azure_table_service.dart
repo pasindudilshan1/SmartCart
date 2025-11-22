@@ -940,4 +940,16 @@ class AzureTableService {
       rethrow;
     }
   }
+
+  /// Store feedback in Azure Table
+  Future<void> storeFeedback(String userId, String feedback) async {
+    final timestamp = DateTime.now().toIso8601String();
+    final entity = {
+      'PartitionKey': userId,
+      'RowKey': timestamp,
+      'Feedback': feedback,
+      'Timestamp': timestamp,
+    };
+    await _executeTableOperation('POST', 'Feedback', '', data: entity);
+  }
 }
