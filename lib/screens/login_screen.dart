@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/azure_auth_service.dart';
 import '../providers/inventory_provider.dart';
 import 'register_screen.dart';
@@ -19,12 +20,31 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final remember = prefs.getBool('remember_me') ?? false;
+    if (remember) {
+      final email = prefs.getString('email') ?? '';
+      final password = prefs.getString('password') ?? '';
+      _emailController.text = email;
+      _passwordController.text = password;
+      setState(() => _rememberMe = true);
+    }
   }
 
   Future<void> _navigateAfterAuthentication() async {
@@ -81,6 +101,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (error == null) {
       debugPrint('✅ Sign in successful, navigating...');
+      // Save credentials if remember me
+      if (_rememberMe) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('remember_me', true);
+        await prefs.setString('email', _emailController.text.trim());
+        await prefs.setString('password', _passwordController.text);
+      } else {
+        // Clear if not remembering
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('remember_me');
+        await prefs.remove('email');
+        await prefs.remove('password');
+      }
       await _navigateAfterAuthentication();
     } else if (error == 'NO_USER_FOUND') {
       debugPrint('⚠️  User not found, showing sign up message');
@@ -304,6 +337,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                   }
                                   return null;
                                 },
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Remember me checkbox
+                            AnimatedOpacity(
+                              opacity: value,
+                              duration: const Duration(milliseconds: 600),
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: _rememberMe,
+                                    onChanged: (value) {
+                                      setState(() => _rememberMe = value ?? false);
+                                    },
+                                  ),
+                                  const Text('Remember Me'),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 8),
