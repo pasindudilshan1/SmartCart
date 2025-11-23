@@ -17,7 +17,6 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool _isEditing = false;
   late TextEditingController _nameController;
-  late TextEditingController _quantityController;
   String _selectedCategory = '';
   DateTime _selectedDate = DateTime.now();
 
@@ -25,7 +24,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.product.name);
-    _quantityController = TextEditingController(text: widget.product.quantity.toString());
     _selectedCategory = widget.product.category;
     _selectedDate = widget.product.expiryDate ?? DateTime.now().add(const Duration(days: 7));
   }
@@ -33,7 +31,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _quantityController.dispose();
     super.dispose();
   }
 
@@ -71,7 +68,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ],
                   if (widget.product.storageTips != null) _buildStorageTipsSection(context),
                   const SizedBox(height: 24),
-                  if (!_isEditing) _buildQuantityControls(context),
                 ],
               ),
             ),
@@ -160,12 +156,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _quantityController,
-                decoration: const InputDecoration(labelText: 'Quantity'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
+              // Hide Quantity field for loose items in edit mode
+              if (!_isLooseItem()) ...[
+                const SizedBox(height: 12),
+              ],
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Expiry Date'),
@@ -186,7 +180,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ] else ...[
               _buildInfoRow('Name', widget.product.name),
               _buildInfoRow('Category', widget.product.category),
-              _buildInfoRow('Quantity', widget.product.quantity.toString()),
+              // Hide Quantity field for loose items (weight-based units like g, kg)
+              if (!_isLooseItem()) _buildInfoRow('Quantity', widget.product.quantity.toString()),
               if (widget.product.actualWeight != null)
                 _buildInfoRow('Actual Weight', '${widget.product.actualWeight}g'),
               _buildInfoRow('Expiry Date', widget.product.expiryDate.toString().split(' ')[0]),
@@ -346,106 +341,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget _buildQuantityControls(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Update Quantity',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton.filled(
-                  onPressed: () => _updateQuantity(context, -1),
-                  icon: const Icon(Icons.remove),
-                ),
-                const SizedBox(width: 24),
-                Text(
-                  widget.product.quantity.toString(),
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 24),
-                IconButton.filled(
-                  onPressed: () => _updateQuantity(context, 1),
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _updateQuantity(BuildContext context, int change) async {
-    final newQuantity = widget.product.quantity + change;
-    if (newQuantity < 0) return;
-
-    // Recalculate nutrition if product has nutrition info and actual weight
-    NutritionInfo? updatedNutritionInfo = widget.product.nutritionInfo;
-    if (widget.product.nutritionInfo != null &&
-        widget.product.actualWeight != null &&
-        widget.product.actualWeight! > 0) {
-      final actualWeight = widget.product.actualWeight!;
-      final currentQuantity = widget.product.quantity;
-      final weightFactor = actualWeight / 100.0;
-
-      // Calculate per-100g values from current total nutrition
-      final per100gCalories =
-          widget.product.nutritionInfo!.calories / (weightFactor * currentQuantity);
-      final per100gProtein =
-          widget.product.nutritionInfo!.protein / (weightFactor * currentQuantity);
-      final per100gFat = widget.product.nutritionInfo!.fat / (weightFactor * currentQuantity);
-      final per100gCarbs = widget.product.nutritionInfo!.carbs / (weightFactor * currentQuantity);
-      final per100gFiber = widget.product.nutritionInfo!.fiber / (weightFactor * currentQuantity);
-
-      // Calculate new total nutrition for new quantity
-      final newTotalFactor = weightFactor * newQuantity;
-      updatedNutritionInfo = NutritionInfo(
-        calories: per100gCalories * newTotalFactor,
-        protein: per100gProtein * newTotalFactor,
-        fat: per100gFat * newTotalFactor,
-        carbs: per100gCarbs * newTotalFactor,
-        fiber: per100gFiber * newTotalFactor,
-        servingSize: widget.product.nutritionInfo!.servingSize,
-      );
-    }
-
-    // Create updated product with new quantity and recalculated nutrition
-    final updatedProduct = Product(
-      id: widget.product.id,
-      name: widget.product.name,
-      barcode: widget.product.barcode,
-      category: widget.product.category,
-      brand: widget.product.brand,
-      imageUrl: widget.product.imageUrl,
-      quantity: newQuantity,
-      unit: widget.product.unit,
-      actualWeight: widget.product.actualWeight,
-      purchaseDate: widget.product.purchaseDate,
-      expiryDate: widget.product.expiryDate,
-      nutritionInfo: updatedNutritionInfo,
-      storageLocation: widget.product.storageLocation,
-      dateAdded: widget.product.dateAdded,
-      storageTips: widget.product.storageTips,
-    );
-
-    await context.read<InventoryProvider>().updateProduct(updatedProduct);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quantity updated')),
-      );
-    }
+  // Helper method to determine if a product is a loose item
+  // Loose items are identified by weight-based units (g, kg) or having actualWeight set
+  bool _isLooseItem() {
+    return widget.product.unit == 'g' ||
+        widget.product.unit == 'kg' ||
+        (widget.product.actualWeight != null && widget.product.actualWeight! > 0);
   }
 
   void _toggleEditMode() {
@@ -462,7 +363,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       category: _selectedCategory,
       brand: widget.product.brand,
       imageUrl: widget.product.imageUrl,
-      quantity: double.tryParse(_quantityController.text) ?? widget.product.quantity,
+      quantity: widget.product.quantity,
       unit: widget.product.unit,
       purchaseDate: widget.product.purchaseDate,
       expiryDate: _selectedDate,

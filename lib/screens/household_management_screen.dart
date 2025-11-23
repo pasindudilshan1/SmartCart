@@ -307,19 +307,19 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
 
   Widget _buildMemberCard(HouseholdMember member, int index) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 2,
       shadowColor: Colors.black.withOpacity(0.1),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: _getAgeGroupColors(member.ageGroup)[0].withOpacity(0.3),
-          width: 2,
+          width: 1.5,
         ),
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -330,7 +330,7 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -338,8 +338,8 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
               Row(
                 children: [
                   Container(
-                    width: 60,
-                    height: 60,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
@@ -350,18 +350,18 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
                       boxShadow: [
                         BoxShadow(
                           color: _getAgeGroupColors(member.ageGroup)[0].withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: Icon(
                       _getAgeGroupIcon(member.ageGroup),
                       color: Colors.white,
-                      size: 28,
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,22 +369,22 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
                         Text(
                           member.name ?? 'Member ${member.memberIndex}',
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.3,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: _getAgeGroupColors(member.ageGroup)[0].withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             member.ageGroup,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: _getAgeGroupColors(member.ageGroup)[1],
                             ),
@@ -396,41 +396,45 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
                   Container(
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: IconButton(
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
                       icon: Icon(
                         Icons.edit_rounded,
                         color: Theme.of(context).colorScheme.primary,
-                        size: 22,
+                        size: 18,
                       ),
                       onPressed: () => _editMember(member),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: IconButton(
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
                       icon: const Icon(
                         Icons.delete_rounded,
                         color: Colors.red,
-                        size: 22,
+                        size: 18,
                       ),
                       onPressed: () => _deleteMember(member),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               // Nutrition information section
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: Colors.grey.shade200,
                     width: 1,
@@ -443,24 +447,24 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
                       children: [
                         Icon(
                           Icons.restaurant_menu,
-                          size: 18,
+                          size: 14,
                           color: Colors.grey.shade700,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
                           'Daily Nutrition Goals',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Colors.grey.shade700,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
                         _buildNutrientChip(
                             '🔥', '${member.dailyCalories.toInt()} kcal', Colors.orange),
@@ -484,24 +488,24 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
   Widget _buildNutrientChip(String emoji, String value, [Color? color]) {
     final chipColor = color ?? Theme.of(context).colorScheme.primary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: chipColor.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: chipColor.withOpacity(0.3),
-          width: 1.5,
+          width: 1,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 14)),
-          const SizedBox(width: 6),
+          Text(emoji, style: const TextStyle(fontSize: 12)),
+          const SizedBox(width: 4),
           Text(
             value,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: chipColor.withOpacity(0.9),
             ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/nutrition_provider.dart';
 import 'providers/theme_provider.dart';
@@ -88,8 +89,8 @@ class SmartCartApp extends StatelessWidget {
               useMaterial3: true,
             ),
             themeMode: themeProvider.themeMode,
-            // Start with login screen - auth flow will handle navigation
-            home: const LoginScreen(),
+            // Start with splash screen, then transition to login
+            home: const SplashScreen(nextScreen: LoginScreen()),
           );
         },
       ),
