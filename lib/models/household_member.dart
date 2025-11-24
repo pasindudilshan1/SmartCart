@@ -75,16 +75,16 @@ class HouseholdMember extends HiveObject {
     // Handle backward compatibility: old data has 'AverageDailyCalories', new has 'DailyCalories'
     double calories = (entity['DailyCalories'] as num?)?.toDouble() ??
         (entity['AverageDailyCalories'] as num?)?.toDouble() ??
-        2000.0;
+        2250.0;
     return HouseholdMember(
       id: entity['RowKey'] as String,
       memberIndex: entity['MemberIndex'] as int,
       ageGroup: entity['AgeGroup'] as String? ?? 'adult',
       dailyCalories: calories,
-      dailyProtein: (entity['DailyProtein'] as num?)?.toDouble() ?? 50.0,
-      dailyFat: (entity['DailyFat'] as num?)?.toDouble() ?? 70.0,
-      dailyCarbs: (entity['DailyCarbs'] as num?)?.toDouble() ?? 250.0,
-      dailyFiber: (entity['DailyFiber'] as num?)?.toDouble() ?? 25.0,
+      dailyProtein: (entity['DailyProtein'] as num?)?.toDouble() ?? 51.0,
+      dailyFat: (entity['DailyFat'] as num?)?.toDouble() ?? 71.0,
+      dailyCarbs: (entity['DailyCarbs'] as num?)?.toDouble() ?? 316.0,
+      dailyFiber: (entity['DailyFiber'] as num?)?.toDouble() ?? 32.0,
       name: entity['Name'] as String? ?? '',
       createdAt: DateTime.parse(entity['CreatedAt'] as String),
       updatedAt: DateTime.parse(entity['UpdatedAt'] as String),
@@ -113,11 +113,11 @@ class HouseholdMember extends HiveObject {
       id: id,
       memberIndex: data['memberIndex'] as int,
       ageGroup: data['ageGroup'] as String? ?? 'adult',
-      dailyCalories: (data['dailyCalories'] as num?)?.toDouble() ?? 2000.0,
-      dailyProtein: (data['dailyProtein'] as num?)?.toDouble() ?? 50.0,
-      dailyFat: (data['dailyFat'] as num?)?.toDouble() ?? 70.0,
-      dailyCarbs: (data['dailyCarbs'] as num?)?.toDouble() ?? 250.0,
-      dailyFiber: (data['dailyFiber'] as num?)?.toDouble() ?? 25.0,
+      dailyCalories: (data['dailyCalories'] as num?)?.toDouble() ?? 2250.0,
+      dailyProtein: (data['dailyProtein'] as num?)?.toDouble() ?? 51.0,
+      dailyFat: (data['dailyFat'] as num?)?.toDouble() ?? 71.0,
+      dailyCarbs: (data['dailyCarbs'] as num?)?.toDouble() ?? 316.0,
+      dailyFiber: (data['dailyFiber'] as num?)?.toDouble() ?? 32.0,
       name: data['name'] as String?,
       createdAt: DateTime.parse(data['createdAt'] as String),
       updatedAt: DateTime.parse(data['updatedAt'] as String),

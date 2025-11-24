@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/azure_auth_service.dart';
 import '../services/azure_table_service.dart';
+import '../services/local_storage_service.dart';
 import '../models/household_member.dart';
+import '../providers/household_nutrition_alerts_provider.dart';
 
 class HouseholdManagementScreen extends StatefulWidget {
   const HouseholdManagementScreen({super.key});
@@ -172,6 +174,94 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
     }
   }
 
+  final Map<String, Map<String, double>> _ageGroupDefaults = {
+    'infant': {'calories': 460, 'protein': 10, 'fat': 23, 'carbs': 52, 'fiber': 5},
+    'child': {'calories': 1400, 'protein': 24, 'fat': 49, 'carbs': 203, 'fiber': 22},
+    'teen': {'calories': 2300, 'protein': 45, 'fat': 82, 'carbs': 339, 'fiber': 29},
+    'adult': {'calories': 2250, 'protein': 51, 'fat': 71, 'carbs': 316, 'fiber': 32},
+    'senior': {'calories': 1800, 'protein': 51, 'fat': 57, 'carbs': 253, 'fiber': 26},
+  };
+
+  Future<void> _resetAllToRecommended() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset to Recommended Values'),
+        content: const Text(
+          'This will update all household members to use the latest recommended nutrition values based on their age groups.\n\n'
+          'Your current custom values will be replaced. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Reset All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final authService = Provider.of<AzureAuthService>(context, listen: false);
+    final userId = authService.currentUserId;
+
+    if (userId == null) return;
+
+    try {
+      for (final member in _members) {
+        final defaults = _ageGroupDefaults[member.ageGroup] ?? _ageGroupDefaults['adult']!;
+
+        await _azureTableService.updateHouseholdMember(
+          userId,
+          member.memberIndex,
+          member.ageGroup,
+          defaults['calories']!,
+          defaults['protein']!,
+          defaults['fat']!,
+          defaults['carbs']!,
+          defaults['fiber']!,
+          name: member.name,
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All members updated to recommended values'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Clear cache and reload
+      await LocalStorageService().clearHouseholdMembersCache();
+      _loadMembers(); // Reload to reflect changes
+
+      // Reload nutrition provider
+      if (mounted) {
+        final nutritionAlertsProvider =
+            Provider.of<HouseholdNutritionAlertsProvider>(context, listen: false);
+        final nutritionProvider = context.read<dynamic>(); // Access NutritionProvider if available
+        if (nutritionProvider != null) {
+          await nutritionAlertsProvider.loadHouseholdNutrition(nutritionProvider);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating members: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,6 +272,12 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
         foregroundColor: Theme.of(context).colorScheme.onSurface,
         shadowColor: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
         actions: [
+          if (_members.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Reset all to recommended values',
+              onPressed: _resetAllToRecommended,
+            ),
           IconButton(
             icon: const Icon(Icons.info_outlined),
             onPressed: () {
@@ -192,7 +288,8 @@ class _HouseholdManagementScreenState extends State<HouseholdManagementScreen> {
                   title: const Text('Household Management'),
                   content: const Text(
                     'Manage your household members and their nutritional needs. '
-                    'Each member\'s age group determines their daily nutrition goals.',
+                    'Each member\'s age group determines their daily nutrition goals.\n\n'
+                    'Tip: Use the refresh button to update all members to the latest recommended values.',
                   ),
                   actions: [
                     TextButton(
@@ -576,11 +673,11 @@ class _EditMemberDialogState extends State<EditMemberDialog> {
   late final TextEditingController _fiberController;
 
   final Map<String, Map<String, double>> _ageGroupDefaults = {
-    'infant': {'calories': 800, 'protein': 15, 'fat': 30, 'carbs': 100, 'fiber': 5},
-    'child': {'calories': 1600, 'protein': 30, 'fat': 50, 'carbs': 200, 'fiber': 20},
-    'teen': {'calories': 2200, 'protein': 45, 'fat': 65, 'carbs': 275, 'fiber': 25},
-    'adult': {'calories': 2000, 'protein': 50, 'fat': 70, 'carbs': 250, 'fiber': 25},
-    'senior': {'calories': 1800, 'protein': 45, 'fat': 60, 'carbs': 225, 'fiber': 25},
+    'infant': {'calories': 460, 'protein': 10, 'fat': 23, 'carbs': 52, 'fiber': 5},
+    'child': {'calories': 1400, 'protein': 24, 'fat': 49, 'carbs': 203, 'fiber': 22},
+    'teen': {'calories': 2300, 'protein': 45, 'fat': 82, 'carbs': 339, 'fiber': 29},
+    'adult': {'calories': 2250, 'protein': 51, 'fat': 71, 'carbs': 316, 'fiber': 32},
+    'senior': {'calories': 1800, 'protein': 51, 'fat': 57, 'carbs': 253, 'fiber': 26},
   };
 
   @override
@@ -960,11 +1057,11 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   late final TextEditingController _fiberController;
 
   final Map<String, Map<String, double>> _ageGroupDefaults = {
-    'infant': {'calories': 800, 'protein': 15, 'fat': 30, 'carbs': 100, 'fiber': 5},
-    'child': {'calories': 1600, 'protein': 30, 'fat': 50, 'carbs': 200, 'fiber': 20},
-    'teen': {'calories': 2200, 'protein': 45, 'fat': 65, 'carbs': 275, 'fiber': 25},
-    'adult': {'calories': 2000, 'protein': 50, 'fat': 70, 'carbs': 250, 'fiber': 25},
-    'senior': {'calories': 1800, 'protein': 45, 'fat': 60, 'carbs': 225, 'fiber': 25},
+    'infant': {'calories': 460, 'protein': 10, 'fat': 23, 'carbs': 52, 'fiber': 5},
+    'child': {'calories': 1400, 'protein': 24, 'fat': 49, 'carbs': 203, 'fiber': 22},
+    'teen': {'calories': 2300, 'protein': 45, 'fat': 82, 'carbs': 339, 'fiber': 29},
+    'adult': {'calories': 2250, 'protein': 51, 'fat': 71, 'carbs': 316, 'fiber': 32},
+    'senior': {'calories': 1800, 'protein': 51, 'fat': 57, 'carbs': 253, 'fiber': 26},
   };
 
   @override

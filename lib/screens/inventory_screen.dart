@@ -481,22 +481,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           (selectedProduct!['Fat'] ?? selectedProduct!['fat']) != null ||
                           (selectedProduct!['Carbs'] ?? selectedProduct!['carbs']) != null ||
                           (selectedProduct!['Fiber'] ?? selectedProduct!['fiber']) != null) {
-                        // Get base values (per 100g/ml)
-                        final baseCalories =
-                            (selectedProduct!['Calories'] ?? selectedProduct!['calories'] ?? 0.0)
-                                .toDouble();
-                        final baseProtein =
-                            (selectedProduct!['Protein'] ?? selectedProduct!['protein'] ?? 0.0)
-                                .toDouble();
-                        final baseFat =
-                            (selectedProduct!['Fat'] ?? selectedProduct!['fat'] ?? 0.0).toDouble();
-                        final baseCarbs =
-                            (selectedProduct!['Carbs'] ?? selectedProduct!['carbs'] ?? 0.0)
-                                .toDouble();
-                        final baseFiber =
-                            (selectedProduct!['Fiber'] ?? selectedProduct!['fiber'] ?? 0.0)
-                                .toDouble();
-
                         // Get actual weight per unit
                         final actualWeightPerUnit = isLooseItem
                             ? (selectedProduct!['ActualWeight']?.toDouble() ?? 1.0)
@@ -1052,35 +1036,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
         return Colors.brown.shade600;
       default:
         return Colors.grey.shade700;
-    }
-  }
-
-  String _getCategoryEmoji(String category) {
-    switch (category.toLowerCase()) {
-      case 'dairy':
-        return '🥛';
-      case 'meat':
-        return '🍖';
-      case 'fruits':
-        return '🍎';
-      case 'vegetables':
-        return '🥕';
-      case 'bakery':
-        return '🍞';
-      case 'grains':
-        return '🌾';
-      case 'beverages':
-        return '🥤';
-      case 'snacks':
-        return '🍿';
-      case 'frozen foods':
-        return '🧊';
-      case 'condiments':
-        return '🧂';
-      case 'nuts':
-        return '🥜';
-      default:
-        return '📦';
     }
   }
 

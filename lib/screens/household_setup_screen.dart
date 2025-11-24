@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/azure_auth_service.dart';
@@ -30,13 +29,13 @@ class _HouseholdSetupScreenState extends State<HouseholdSetupScreen> {
   bool _isSaving = false;
   int _memberCount = 1;
 
-  // Age group defaults
+  // Age group defaults (based on recommended daily nutrition values)
   final Map<String, Map<String, double>> _ageGroupDefaults = {
-    'infant': {'calories': 800, 'protein': 15, 'fat': 30, 'carbs': 100, 'fiber': 5},
-    'child': {'calories': 1600, 'protein': 30, 'fat': 50, 'carbs': 200, 'fiber': 20},
-    'teen': {'calories': 2200, 'protein': 45, 'fat': 65, 'carbs': 275, 'fiber': 25},
-    'adult': {'calories': 2000, 'protein': 50, 'fat': 70, 'carbs': 250, 'fiber': 25},
-    'senior': {'calories': 1800, 'protein': 45, 'fat': 60, 'carbs': 225, 'fiber': 25},
+    'infant': {'calories': 460, 'protein': 10, 'fat': 23, 'carbs': 52, 'fiber': 5},
+    'child': {'calories': 1400, 'protein': 24, 'fat': 49, 'carbs': 203, 'fiber': 22},
+    'teen': {'calories': 2300, 'protein': 45, 'fat': 82, 'carbs': 339, 'fiber': 29},
+    'adult': {'calories': 2250, 'protein': 51, 'fat': 71, 'carbs': 316, 'fiber': 32},
+    'senior': {'calories': 1800, 'protein': 51, 'fat': 57, 'carbs': 253, 'fiber': 26},
   };
 
   @override

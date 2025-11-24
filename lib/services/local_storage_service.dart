@@ -177,4 +177,20 @@ class LocalStorageService {
       print('❌ Error clearing local data: $e');
     }
   }
+
+  /// Clear household members cache (to force reload from server)
+  Future<void> clearHouseholdMembersCache() async {
+    try {
+      late Box<HouseholdMember> householdBox;
+      if (Hive.isBoxOpen(_householdBoxName)) {
+        householdBox = Hive.box<HouseholdMember>(_householdBoxName);
+      } else {
+        householdBox = await Hive.openBox<HouseholdMember>(_householdBoxName);
+      }
+      await householdBox.clear();
+      print('✅ Cleared household members cache');
+    } catch (e) {
+      print('❌ Error clearing household members cache: $e');
+    }
+  }
 }
