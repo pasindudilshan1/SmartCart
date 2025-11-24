@@ -1621,7 +1621,8 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   border: const OutlineInputBorder(),
-                  labelText: 'Quantity (${isBeverage ? 'ml' : 'g'})',
+                  labelText:
+                      isLooseItem ? 'Quantity (${isBeverage ? 'ml' : 'g'})' : 'Quantity (item)',
                   suffixIcon: const Icon(Icons.shopping_cart),
                 ),
               ),
@@ -1641,7 +1642,11 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
 
               // Projected Totals
               _buildInfoSection('After Purchase Totals', [
-                _buildInfoRow('New Total Quantity', '${newTotalQuantity.toStringAsFixed(1)} $unit'),
+                _buildInfoRow(
+                    'New Total Quantity',
+                    isLooseItem
+                        ? '${newTotalQuantity.toStringAsFixed(1)} $unit'
+                        : newTotalQuantity.toStringAsFixed(1)),
                 _buildInfoRow('New Total Calories', '${newTotalCalories.toStringAsFixed(0)} kcal'),
                 _buildInfoRow('New Total Protein', '${newTotalProtein.toStringAsFixed(1)}g'),
                 _buildInfoRow('New Total Carbs', '${newTotalCarbs.toStringAsFixed(1)}g'),

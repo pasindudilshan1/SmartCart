@@ -377,23 +377,13 @@ class InventoryProvider extends ChangeNotifier {
 
     for (var product in _products) {
       if (product.nutritionInfo != null) {
-        // Calculate nutrition based on quantity and unit
-        double multiplier = 1.0;
-
-        // If we have actual weight, use it for calculation
-        if (product.actualWeight != null && product.actualWeight! > 0) {
-          // Nutrition info is per 100g, so divide by 100 and multiply by actual weight
-          multiplier = product.actualWeight! / 100.0;
-        } else {
-          // Fallback to quantity if no actual weight
-          multiplier = product.quantity;
-        }
-
-        totalCalories += product.nutritionInfo!.calories * multiplier;
-        totalProtein += product.nutritionInfo!.protein * multiplier;
-        totalCarbs += product.nutritionInfo!.carbs * multiplier;
-        totalFat += product.nutritionInfo!.fat * multiplier;
-        totalFiber += product.nutritionInfo!.fiber * multiplier;
+        // Nutrition values are already calculated for the total amount when products are added
+        // No need to multiply again - just sum them up
+        totalCalories += product.nutritionInfo!.calories;
+        totalProtein += product.nutritionInfo!.protein;
+        totalCarbs += product.nutritionInfo!.carbs;
+        totalFat += product.nutritionInfo!.fat;
+        totalFiber += product.nutritionInfo!.fiber;
       }
     }
 
