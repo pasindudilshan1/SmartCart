@@ -154,6 +154,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   'Snacks',
                   'Beverages',
                   'Frozen Foods',
+                  'Spreads',
                   'Other',
                 ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (value) {

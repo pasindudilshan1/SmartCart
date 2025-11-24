@@ -223,11 +223,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
       'Snacks',
       'Beverages',
       'Frozen Foods',
+      'Spreads',
       'Other',
     ]; // Default categories
     bool isLoadingProducts = false;
     bool isLooseItem = false; // Checkbox for loose items
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    final now = DateTime.now();
+    DateTime selectedDate = DateTime.utc(now.year, now.month, now.day + 7);
     final azureService = AzureTableService();
 
     // Function to load categories from table
@@ -243,6 +245,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           'Snacks',
           'Beverages',
           'Frozen Foods',
+          'Spreads',
           'Other',
         ];
         return;
@@ -411,17 +414,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Expiry Date'),
-                  subtitle: Text(selectedDate.toString().split(' ')[0]),
+                  subtitle: Text(
+                    '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                  ),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
                       initialDate: selectedDate,
                       firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                     );
                     if (date != null) {
-                      setState(() => selectedDate = date);
+                      setState(() {
+                        // Normalize to midnight UTC to avoid timezone issues
+                        selectedDate = DateTime.utc(date.year, date.month, date.day);
+                      });
                     }
                   },
                 ),
@@ -964,26 +972,30 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   ),
                               ],
                             ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.info_outlined,
-                                      color: Theme.of(context).colorScheme.primary),
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => ProductDetailScreen(product: product),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  onPressed: () => _deleteProduct(context, product),
-                                ),
-                              ],
+                            trailing: SizedBox(
+                              width: 96,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.info_outlined,
+                                        color: Theme.of(context).colorScheme.primary),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ProductDetailScreen(product: product),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                    onPressed: () => _deleteProduct(context, product),
+                                  ),
+                                ],
+                              ),
                             ),
                             onTap: () {
                               Navigator.push(
@@ -1524,17 +1536,59 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Widget _buildAlertTile(NutritionAlert alert) {
     final color = alert.isCritical ? Colors.red : Colors.orange;
-    final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
+    final emoji = alert.isCritical ? '🚨' : '⚠️';
 
     return Card(
-      color: color.withValues(alpha: 0.08),
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(
-          alert.headline,
-          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 2,
+      shadowColor: color.withOpacity(0.2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.05),
+              color.withOpacity(0.02),
+            ],
+          ),
         ),
-        subtitle: Text(alert.description),
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(16),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color, color.withOpacity(0.8)],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              emoji,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+          title: Text(
+            alert.headline,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              alert.description,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

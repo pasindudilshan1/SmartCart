@@ -77,8 +77,11 @@ class Product extends HiveObject {
   // Calculate days until expiry
   int get daysUntilExpiry {
     if (expiryDate == null) return 999;
+    // Normalize both dates to midnight for accurate day comparison
     final now = DateTime.now();
-    return expiryDate!.difference(now).inDays;
+    final today = DateTime(now.year, now.month, now.day);
+    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
+    return expiry.difference(today).inDays;
   }
 
   // Check if product is expired

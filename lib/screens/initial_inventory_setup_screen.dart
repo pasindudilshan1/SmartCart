@@ -385,7 +385,8 @@ class _InitialInventorySetupScreenState extends State<InitialInventorySetupScree
       'Snacks',
       'Beverages',
       'Frozen Foods',
-      'Other'
+      'Spreads',
+      'Other',
     ];
 
     showModalBottomSheet(
@@ -649,6 +650,7 @@ class _InitialInventorySetupScreenState extends State<InitialInventorySetupScree
       'Snacks',
       'Beverages',
       'Frozen Foods',
+      'Spreads',
       'Other'
     ];
 

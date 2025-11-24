@@ -233,7 +233,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
             quantity: 1,
             unit: info['unit'] ?? 'pcs',
             purchaseDate: DateTime.now(),
-            expiryDate: DateTime.now().add(const Duration(days: 7)), // Default 7 days
+            expiryDate: (() {
+              final now = DateTime.now();
+              return DateTime.utc(now.year, now.month, now.day + 7);
+            })(), // Default 7 days, normalized to UTC
           );
 
           _showProductDialog(product, nutrition: nutrition);
@@ -265,7 +268,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final carbsController =
         TextEditingController(text: nutrition?['carbohydrates']?.toString() ?? '');
     final fiberController = TextEditingController(text: nutrition?['fiber']?.toString() ?? '');
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    final now = DateTime.now();
+    DateTime selectedDate = DateTime.utc(now.year, now.month, now.day + 7);
     String selectedCategory = product.category;
 
     final categories = [
@@ -385,17 +389,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Expiry Date'),
-                    subtitle: Text(selectedDate.toString().split(' ')[0]),
+                    subtitle: Text(
+                      '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                    ),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
                         initialDate: selectedDate,
                         firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                       );
                       if (date != null) {
-                        setState(() => selectedDate = date);
+                        setState(() {
+                          // Normalize to midnight UTC to avoid timezone issues
+                          selectedDate = DateTime.utc(date.year, date.month, date.day);
+                        });
                       }
                     },
                   ),
@@ -483,6 +492,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       'Snacks',
                       'Beverages',
                       'Frozen Foods',
+                      'Spreads',
                       'Other',
                     ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                     onChanged: (v) {
@@ -574,7 +584,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final quantityController = TextEditingController(text: '1');
     double quantity = 1.0;
     String selectedCategory = shoppingItem['Category'] ?? 'Other';
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    final now = DateTime.now();
+    DateTime selectedDate = DateTime.utc(now.year, now.month, now.day + 7);
 
     final categories = [
       'Fruits & Vegetables',
@@ -586,6 +597,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       'Snacks',
       'Beverages',
       'Frozen Foods',
+      'Spreads',
       'Other'
     ];
 
@@ -679,20 +691,26 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Expiry Date'),
-                    subtitle: Text(selectedDate.toString().split(' ')[0]),
+                    subtitle: Text(
+                      '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                    ),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
                         initialDate: selectedDate,
                         firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                       );
                       if (date != null) {
-                        setState(() => selectedDate = date);
+                        setState(() {
+                          // Normalize to midnight UTC to avoid timezone issues
+                          selectedDate = DateTime.utc(date.year, date.month, date.day);
+                        });
                       }
                     },
                   ),
+                  const SizedBox(height: 16),
                   const SizedBox(height: 16),
                   const Text(
                     'Nutrition Information',
@@ -914,7 +932,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void _showLooseItemDetails(Map<String, dynamic> looseItem) {
     final quantityController = TextEditingController(text: '100');
     double quantity = 100.0;
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    final now = DateTime.now();
+    DateTime selectedDate = DateTime.utc(now.year, now.month, now.day + 7);
 
     showModalBottomSheet(
       context: context,
@@ -1020,17 +1039,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Expiry Date'),
-                    subtitle: Text(selectedDate.toString().split(' ')[0]),
+                    subtitle: Text(
+                      '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                    ),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
                         initialDate: selectedDate,
                         firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                       );
                       if (date != null) {
-                        setState(() => selectedDate = date);
+                        setState(() {
+                          // Normalize to midnight UTC to avoid timezone issues
+                          selectedDate = DateTime.utc(date.year, date.month, date.day);
+                        });
                       }
                     },
                   ),

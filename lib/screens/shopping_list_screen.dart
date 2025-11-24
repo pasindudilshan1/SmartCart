@@ -144,17 +144,59 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
 
   Widget _buildAlertTile(NutritionAlert alert) {
     final color = alert.isCritical ? Colors.red : Colors.orange;
-    final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
+    final emoji = alert.isCritical ? '🚨' : '⚠️';
 
     return Card(
-      color: color.withValues(alpha: 0.08),
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(
-          alert.headline,
-          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 2,
+      shadowColor: color.withOpacity(0.2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.05),
+              color.withOpacity(0.02),
+            ],
+          ),
         ),
-        subtitle: Text(alert.description),
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(16),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color, color.withOpacity(0.8)],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              emoji,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+          title: Text(
+            alert.headline,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              alert.description,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -920,7 +962,20 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
   void _showLooseItemShoppingDialog(Map<String, dynamic> looseItem) {
     final weightController = TextEditingController(text: '100');
     double weight = 100.0;
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    // Parse expiry_date from loose item, fallback to expiry_days, or default to 7 days
+    DateTime selectedDate;
+    final now = DateTime.now();
+    if (looseItem['expiry_date'] != null && looseItem['expiry_date'].toString().isNotEmpty) {
+      final parsedDate = DateTime.tryParse(looseItem['expiry_date'].toString());
+      selectedDate = parsedDate != null
+          ? DateTime.utc(parsedDate.year, parsedDate.month, parsedDate.day)
+          : DateTime.utc(now.year, now.month, now.day + 7);
+    } else if (looseItem['expiry_days'] != null) {
+      final expiryDays = int.tryParse(looseItem['expiry_days'].toString()) ?? 7;
+      selectedDate = DateTime.utc(now.year, now.month, now.day + expiryDays);
+    } else {
+      selectedDate = DateTime.utc(now.year, now.month, now.day + 7);
+    }
 
     showModalBottomSheet(
       context: context,
@@ -991,17 +1046,22 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Expiry Date'),
-                    subtitle: Text(selectedDate.toString().split(' ')[0]),
+                    subtitle: Text(
+                      '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                    ),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
                         initialDate: selectedDate,
                         firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
                       );
                       if (date != null) {
-                        setState(() => selectedDate = date);
+                        setState(() {
+                          // Normalize to midnight UTC to avoid timezone issues
+                          selectedDate = DateTime.utc(date.year, date.month, date.day);
+                        });
                       }
                     },
                   ),
@@ -1089,6 +1149,27 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
       final calculatedFat = baseFat * weightMultiplier;
       final calculatedFiber = baseFiber * weightMultiplier;
 
+      // Parse expiry date from shopping item
+      DateTime? expiryDate;
+      final now = DateTime.now();
+      if (item['ExpiryDate'] != null && item['ExpiryDate'].toString().isNotEmpty) {
+        final parsedDate = DateTime.tryParse(item['ExpiryDate'].toString());
+        expiryDate = parsedDate != null
+            ? DateTime.utc(parsedDate.year, parsedDate.month, parsedDate.day)
+            : null;
+      } else if (item['expiry_date'] != null && item['expiry_date'].toString().isNotEmpty) {
+        final parsedDate = DateTime.tryParse(item['expiry_date'].toString());
+        expiryDate = parsedDate != null
+            ? DateTime.utc(parsedDate.year, parsedDate.month, parsedDate.day)
+            : null;
+      } else if (item['EstimatedExpiryDays'] != null) {
+        final expiryDays = int.tryParse(item['EstimatedExpiryDays'].toString()) ?? 7;
+        expiryDate = DateTime.utc(now.year, now.month, now.day + expiryDays);
+      } else if (item['expiry_days'] != null) {
+        final expiryDays = int.tryParse(item['expiry_days'].toString()) ?? 7;
+        expiryDate = DateTime.utc(now.year, now.month, now.day + expiryDays);
+      }
+
       // Create product from shopping item
       final product = Product(
         id: 'prod_${DateTime.now().millisecondsSinceEpoch}',
@@ -1109,6 +1190,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
         storageLocation: item['StorageLocation'] ?? item['storageLocation'],
         purchaseDate: DateTime.now(),
         dateAdded: DateTime.now(),
+        expiryDate: expiryDate,
         nutritionInfo: baseCalories > 0
             ? NutritionInfo(
                 calories: calculatedCalories,
@@ -1788,42 +1870,89 @@ class _ProductDetailsSheetState extends State<_ProductDetailsSheet> {
 
   Widget _buildHouseholdAlertCard(NutritionAlert alert) {
     final color = alert.isCritical ? Colors.red : Colors.orange;
-    final icon = alert.isCritical ? Icons.warning_amber_rounded : Icons.info_outline;
+    final emoji = alert.isCritical ? '🚨' : '⚠️';
     final label = alert.triggeredByUpcomingPurchase ? 'After purchase' : 'Current';
 
     return Card(
-      color: color.withValues(alpha: 0.08),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    alert.headline,
-                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shadowColor: color.withOpacity(0.2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.05),
+              color.withOpacity(0.02),
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color, color.withOpacity(0.8)],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      alert.headline,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color.withOpacity(0.2), color.withOpacity(0.1)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(left: 44),
+                child: Text(
+                  alert.description,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    fontSize: 14,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    label,
-                    style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(alert.description),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
