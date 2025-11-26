@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Dart](https://img.shields.io/badge/Dart-3.0+-blue.svg)](https://dart.dev)
 
-**✨ PRODUCTION-READY WITH FULL FIREBASE INTEGRATION & REAL BARCODE SCANNING! ✨**
+**✨ PRODUCTION-READY WITH AZURE INTEGRATION & REAL BARCODE SCANNING! ✨**
 
 </div>
 
@@ -34,26 +34,27 @@
 
 ## 🔥 What's New
 
-✅ **Firebase Authentication** - Secure user accounts with email/password and Google Sign-In  
-✅ **Cloud Firestore** - Real-time sync across all your devices  
-✅ **Real Barcode Scanning** - Scan actual product barcodes with your camera  
+✅ **Azure Authentication** - Secure user accounts with Azure authentication services  
+✅ **Azure Table Storage** - Cloud-based data storage with Azure integration  
+✅ **Real Barcode Scanning** - Scan actual product barcodes with your camera using mobile_scanner  
 ✅ **Open Food Facts API** - Automatic product info lookup from 2+ million products  
-✅ **Multi-device Sync** - Access your inventory from phone, tablet, anywhere  
-✅ **Offline Support** - Works without internet, syncs when back online  
-✅ **Dual Database** - Hive for local storage + Firestore for cloud sync
+✅ **Household Management** - Multi-member household setup and nutrition tracking  
+✅ **Offline Support** - Works without internet using Hive local storage  
+✅ **Shopping List** - Integrated cloud-synced shopping list feature  
+✅ **Nutrition Insights** - Track household nutrition needs and dietary preferences
 
 ---
 
 ## 🌱 Project Overview
 
-**SmartCart** is a cross-platform mobile application built with **Flutter** that helps households reduce food waste by making smarter grocery purchasing decisions. The app integrates **barcode scanning**, **cloud-synced inventory tracking**, and **nutritional awareness** to promote responsible consumption.
+**SmartCart** is a cross-platform mobile application built with **Flutter** that helps households reduce food waste by making smarter grocery purchasing decisions. The app integrates **barcode scanning**, **Azure cloud storage**, **household nutrition tracking**, and **inventory management** to promote responsible consumption.
 
 ### 🎯 Key Goals
 - Reduce household food waste at the point of purchase
-- Align grocery decisions with nutritional needs
+- Align grocery decisions with household nutritional needs
 - Promote sustainability through awareness and insights
-- Provide real-time, cloud-synced inventory management
-- Enable multi-device access to your food inventory
+- Provide cloud-synced inventory management via Azure
+- Enable household member management and personalized nutrition tracking
 
 ### 🌍 SDG Contribution
 This project directly contributes to:
@@ -67,16 +68,17 @@ This project directly contributes to:
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **🔐 User Authentication** | ✅ **LIVE** | Email/password & Google Sign-In |
-| **📷 Barcode Scanning** | ✅ **LIVE** | Scan real product barcodes using camera |
+| **🔐 User Authentication** | ✅ **LIVE** | Azure authentication with secure login/signup |
+| **📷 Barcode Scanning** | ✅ **LIVE** | Scan real product barcodes using mobile_scanner |
 | **🌍 Product Database** | ✅ **LIVE** | Access to 2+ million products via Open Food Facts |
-| **☁️ Cloud Sync** | ✅ **LIVE** | Real-time inventory sync via Firestore |
+| **☁️ Cloud Storage** | ✅ **LIVE** | Azure Table Storage for cloud data persistence |
 | **📦 Smart Inventory** | ✅ **LIVE** | Track products with expiry, quantities, categories |
 | **🍎 Nutrition Data** | ✅ **LIVE** | Automatic nutrition info from Open Food Facts |
+| **👥 Household Management** | ✅ **LIVE** | Multi-member household setup and tracking |
 | **⚠️ Expiry Alerts** | ✅ **LIVE** | Get notified about expiring products |
 | **🛒 Shopping List** | ✅ **LIVE** | Cloud-synced shopping list management |
-| **📱 Offline Mode** | ✅ **LIVE** | Works offline, syncs when connection returns |
-| **🔄 Multi-device** | ✅ **LIVE** | Access from phone, tablet, anywhere |
+| **📱 Offline Mode** | ✅ **LIVE** | Works offline with Hive local storage |
+| **🎨 Onboarding** | ✅ **LIVE** | Interactive introduction screens for new users |
 
 ---
 
@@ -86,15 +88,18 @@ This project directly contributes to:
 |-------|-------------------|
 | **Language** | Dart 3.0+ |
 | **Framework** | Flutter 3.0+ |
-| **Authentication** | Firebase Auth (Email, Google Sign-In) |
-| **Cloud Database** | Cloud Firestore |
-| **Local Database** | Hive (NoSQL, offline cache) |
+| **Authentication** | Azure Authentication Services |
+| **Cloud Storage** | Azure Table Storage |
+| **Local Database** | Hive (NoSQL, offline storage) |
 | **State Management** | Provider |
 | **Barcode API** | Open Food Facts API |
-| **Scanner** | mobile_scanner package |
+| **Scanner** | mobile_scanner, qr_code_scanner |
 | **API Client** | Dio (HTTP), http |
 | **Charts** | fl_chart |
-| **UI** | Material Design 3 |
+| **UI** | Material Design 3, Google Fonts |
+| **Permissions** | permission_handler |
+| **PDF Export** | pdf, printing |
+| **Onboarding** | introduction_screen |
 
 ---
 
@@ -103,9 +108,11 @@ This project directly contributes to:
 ### Prerequisites
 - Flutter SDK 3.0+ ([Install Flutter](https://docs.flutter.dev/get-started/install))
 - Dart SDK 3.0+
-- VS Code or Android Studio
+- VS Code or Android Studio with Flutter extensions
 - Git
+- Azure account with Table Storage configured
 - For Android: Android SDK, emulator or physical device
+- For Windows: Windows 10+ (for Windows desktop builds)
 
 ### Installation
 
@@ -124,13 +131,13 @@ This project directly contributes to:
    .\scripts\setup.ps1 get
    ```
 
-3. **Configure credentials** (Important!)
+3. **Configure Azure credentials** (Important!)
    ```powershell
    Copy-Item lib\config\azure_config.dart.template lib\config\azure_config.dart
    ```
-   Edit `lib/config/azure_config.dart` with your actual credentials.
+   Edit `lib/config/azure_config.dart` with your Azure Storage account credentials.
    
-   📚 See [docs/SETUP_CREDENTIALS.md](docs/SETUP_CREDENTIALS.md) for details.
+   📚 See [docs/SETUP_CREDENTIALS.md](docs/SETUP_CREDENTIALS.md) and [docs/AZURE_SETUP.md](docs/AZURE_SETUP.md) for details.
 
 4. **Generate Hive adapters**
    ```powershell
@@ -164,10 +171,16 @@ smartcart/
 │   │   ├── home_screen.dart
 │   │   ├── login_screen.dart
 │   │   ├── register_screen.dart
+│   │   ├── splash_screen.dart
+│   │   ├── onboarding_screen.dart
 │   │   ├── scanner_screen.dart
 │   │   ├── inventory_screen.dart
+│   │   ├── initial_inventory_setup_screen.dart
 │   │   ├── shopping_list_screen.dart
 │   │   ├── nutrition_screen.dart
+│   │   ├── household_setup_screen.dart
+│   │   ├── household_management_screen.dart
+│   │   ├── household_nutrition_screen.dart
 │   │   └── product_detail_screen.dart
 │   ├── services/                 # Business logic & APIs
 │   │   ├── azure_auth_service.dart
@@ -220,6 +233,10 @@ All scripts are located in the `scripts/` folder:
 | `clean_build_apk.ps1` | Clean build directory and rebuild APK |
 | `quick_build.ps1` | Quick debug APK build |
 | `fix_qr_scanner.ps1` | Fix QR scanner permissions |
+| `add_keells_products.ps1` | Populate product database with Keells products |
+| `add_biscuits_crackers.ps1` | Add biscuits and crackers to product database |
+| `populate_shopping_list.ps1` | Populate shopping list with sample data |
+| `save_to_shopping_table.ps1` | Save data to Azure shopping table |
 | `setup.bat` | Windows batch setup script |
 
 ### Usage Examples
@@ -254,8 +271,9 @@ All documentation is organized in the `docs/` folder:
 ### Architecture & Design
 - [🏛️ Architecture Overview](docs/ARCHITECTURE.md) - System design and patterns
 - [📊 Architecture Diagram](docs/ARCHITECTURE_DIAGRAM.md) - Visual system overview
-- [🔥 Firebase Structure](docs/FIREBASE_STRUCTURE.md) - Database schema
+- [🔥 Firebase Structure](docs/FIREBASE_STRUCTURE.md) - Database schema (legacy reference)
 - [👥 User Data Separation](docs/USER_DATA_SEPARATION.md) - Privacy & security
+- [🛒 Shopping List Feature](docs/SHOPPING_LIST_FEATURE.md) - Shopping list implementation
 
 ### Azure Integration
 - [☁️ Azure Setup](docs/AZURE_SETUP.md) - Complete Azure configuration
@@ -302,9 +320,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **Open Food Facts** - Product database API
-- **Firebase** - Authentication & cloud database
-- **Flutter Team** - Amazing framework
+- **Open Food Facts** - Product database API providing nutrition information
+- **Azure** - Cloud infrastructure and storage services
+- **Flutter Team** - Amazing cross-platform framework
+- **Keells Supermarket** - Product data for Sri Lankan grocery items
 - **Contributors** - Thank you for your support!
 
 ---

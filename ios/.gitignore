@@ -1,3 +1,4 @@
+# Xcode
 **/dgph
 *.mode1v3
 *.mode2v3
@@ -15,6 +16,11 @@ Icon?
 profile
 xcuserdata
 **/.generated/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Flutter/Dart
 Flutter/App.framework
 Flutter/Flutter.framework
 Flutter/Flutter.podspec
@@ -26,6 +32,62 @@ Flutter/flutter_assets/
 Flutter/flutter_export_environment.sh
 ServiceDefinitions.json
 Runner/GeneratedPluginRegistrant.*
+
+# Firebase
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+firebase.json
+.firebaserc
+
+# Certificates and provisioning profiles
+*.cer
+*.p12
+*.mobileprovision
+*.provisionprofile
+exportOptions.plist
+
+# Fastlane
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+**/fastlane/readme.md
+
+# Code Injection
+iOSInjectionProject/
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Build artifacts
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Swift Package Manager
+.swiftpm/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# Accio
+Dependencies/
+
+# Log files
+*.log
+
+# Backup files
+*.bak
+*~
 
 # Exceptions to above rules.
 !default.mode1v3

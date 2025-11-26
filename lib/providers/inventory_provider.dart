@@ -230,20 +230,20 @@ class InventoryProvider extends ChangeNotifier {
         final weightFactor = actualWeight / 100.0;
 
         // Calculate per-100g values from current total nutrition
-        final per100gCalories = product.nutritionInfo!.calories / (weightFactor * currentQuantity);
-        final per100gProtein = product.nutritionInfo!.protein / (weightFactor * currentQuantity);
-        final per100gFat = product.nutritionInfo!.fat / (weightFactor * currentQuantity);
-        final per100gCarbs = product.nutritionInfo!.carbs / (weightFactor * currentQuantity);
-        final per100gFiber = product.nutritionInfo!.fiber / (weightFactor * currentQuantity);
+        final per100gCalories = product.nutritionInfo!.calories / weightFactor;
+        final per100gProtein = product.nutritionInfo!.protein / weightFactor;
+        final per100gFat = product.nutritionInfo!.fat / weightFactor;
+        final per100gCarbs = product.nutritionInfo!.carbs / weightFactor;
+        final per100gFiber = product.nutritionInfo!.fiber / weightFactor;
 
         // Calculate new total nutrition for new quantity
-        final newTotalFactor = weightFactor * newQuantity;
+        final newWeightFactor = weightFactor * (newQuantity / currentQuantity);
         updatedNutritionInfo = NutritionInfo(
-          calories: per100gCalories * newTotalFactor,
-          protein: per100gProtein * newTotalFactor,
-          fat: per100gFat * newTotalFactor,
-          carbs: per100gCarbs * newTotalFactor,
-          fiber: per100gFiber * newTotalFactor,
+          calories: per100gCalories * newWeightFactor,
+          protein: per100gProtein * newWeightFactor,
+          fat: per100gFat * newWeightFactor,
+          carbs: per100gCarbs * newWeightFactor,
+          fiber: per100gFiber * newWeightFactor,
           servingSize: product.nutritionInfo!.servingSize,
         );
       }

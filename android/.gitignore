@@ -1,14 +1,92 @@
+# Gradle files
 gradle-wrapper.jar
 /.gradle
-/captures/
 /gradlew
 /gradlew.bat
 /local.properties
+.gradle/
+**/build/
+
+# Build outputs
+/captures/
+/buildOutputs/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Generated files
 GeneratedPluginRegistrant.java
+GeneratedPluginRegistrant.kt
 .cxx/
+.externalNativeBuild/
 
 # Remember to never publicly share your keystore.
 # See https://flutter.dev/to/reference-keystore
 key.properties
+upload-keystore.jks
 **/*.keystore
 **/*.jks
+**/keystore.properties
+
+# Google Services
+google-services.json
+**/google-services.json
+
+# Firebase
+app/google-services.json
+firebase.json
+.firebaserc
+
+# Local configuration
+local.properties
+**/local.properties
+
+# ProGuard
+proguard/
+**/proguard-rules.pro
+
+# Log files
+*.log
+
+# Android Studio
+*.iml
+.idea/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries
+.idea/libraries
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/misc.xml
+.idea/runConfigurations.xml
+.idea/modules.xml
+.idea/.name
+.idea/caches
+.idea/deploymentTargetDropDown.xml
+.idea/vcs.xml
+.navigation/
+captures/
+output.json
+
+# NDK
+obj/
+.externalNativeBuild
+.cxx
+
+# Signing files
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+**/signing/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*~

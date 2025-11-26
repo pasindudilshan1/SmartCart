@@ -576,6 +576,8 @@ class _InitialInventorySetupScreenState extends State<InitialInventorySetupScree
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () {
+                          final quantity = double.tryParse(quantityController.text) ?? 1.0;
+
                           // Create nutrition info if any fields are filled
                           NutritionInfo? nutritionInfo;
                           if (caloriesController.text.isNotEmpty ||
@@ -584,11 +586,12 @@ class _InitialInventorySetupScreenState extends State<InitialInventorySetupScree
                               carbsController.text.isNotEmpty ||
                               fiberController.text.isNotEmpty) {
                             nutritionInfo = NutritionInfo(
-                              calories: double.tryParse(caloriesController.text) ?? 0.0,
-                              protein: double.tryParse(proteinController.text) ?? 0.0,
-                              fat: double.tryParse(fatController.text) ?? 0.0,
-                              carbs: double.tryParse(carbsController.text) ?? 0.0,
-                              fiber: double.tryParse(fiberController.text) ?? 0.0,
+                              calories:
+                                  (double.tryParse(caloriesController.text) ?? 0.0) * quantity,
+                              protein: (double.tryParse(proteinController.text) ?? 0.0) * quantity,
+                              fat: (double.tryParse(fatController.text) ?? 0.0) * quantity,
+                              carbs: (double.tryParse(carbsController.text) ?? 0.0) * quantity,
+                              fiber: (double.tryParse(fiberController.text) ?? 0.0) * quantity,
                             );
                           }
 
@@ -599,7 +602,7 @@ class _InitialInventorySetupScreenState extends State<InitialInventorySetupScree
                             category: product.category,
                             brand: product.brand,
                             imageUrl: product.imageUrl,
-                            quantity: double.tryParse(quantityController.text) ?? 1.0,
+                            quantity: quantity,
                             unit: product.unit,
                             purchaseDate: DateTime.now(),
                             expiryDate: selectedDate,
@@ -804,6 +807,8 @@ class _InitialInventorySetupScreenState extends State<InitialInventorySetupScree
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
+                  final quantity = double.tryParse(quantityController.text) ?? 1.0;
+
                   // Create nutrition info if any fields are filled
                   NutritionInfo? nutritionInfo;
                   if (caloriesController.text.isNotEmpty ||
@@ -812,11 +817,11 @@ class _InitialInventorySetupScreenState extends State<InitialInventorySetupScree
                       carbsController.text.isNotEmpty ||
                       fiberController.text.isNotEmpty) {
                     nutritionInfo = NutritionInfo(
-                      calories: double.tryParse(caloriesController.text) ?? 0.0,
-                      protein: double.tryParse(proteinController.text) ?? 0.0,
-                      fat: double.tryParse(fatController.text) ?? 0.0,
-                      carbs: double.tryParse(carbsController.text) ?? 0.0,
-                      fiber: double.tryParse(fiberController.text) ?? 0.0,
+                      calories: (double.tryParse(caloriesController.text) ?? 0.0) * quantity,
+                      protein: (double.tryParse(proteinController.text) ?? 0.0) * quantity,
+                      fat: (double.tryParse(fatController.text) ?? 0.0) * quantity,
+                      carbs: (double.tryParse(carbsController.text) ?? 0.0) * quantity,
+                      fiber: (double.tryParse(fiberController.text) ?? 0.0) * quantity,
                     );
                   }
 
@@ -824,7 +829,7 @@ class _InitialInventorySetupScreenState extends State<InitialInventorySetupScree
                     id: _uuid.v4(),
                     name: nameController.text,
                     expiryDate: selectedDate,
-                    quantity: double.tryParse(quantityController.text) ?? 1.0,
+                    quantity: quantity,
                     unit: 'pcs',
                     barcode: barcode,
                     category: categoryController.text,

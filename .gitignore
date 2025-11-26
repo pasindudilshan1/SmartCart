@@ -16,6 +16,18 @@ migrate_working_dir/
 *.iws
 .idea/
 
+# Visual Studio
+.vs/
+*.vsidx
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.db-shm
+*.db-wal
+slnx.sqlite
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -44,9 +56,26 @@ app.*.map.json
 /android/app/release
 /android/app/build
 /android/app/google-services.json
+/android/build/
+/android/local.properties
+/android/.gradle/
 
 # Azure Configuration - NEVER COMMIT CREDENTIALS!
 lib/config/azure_config.dart
+
+# Scripts - May contain sensitive data or local configurations
+scripts/*.log
+scripts/temp/
+scripts/.env
+
+# Documentation - Temporary or generated docs
+docs/*.tmp
+docs/.drafts/
+
+# CSV Data Files - May contain sensitive product data
+*.csv
+keells_*.csv
+*_products*.csv
 
 # Hive generated files
 *.g.dart
@@ -85,3 +114,70 @@ lib/config/azure_config.dart
 !**/ios/**/default.mode2v3
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
+
+# Windows build artifacts
+windows/flutter/ephemeral/
+windows/build/
+
+# Web build artifacts
+web/build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# API Keys and Secrets
+**/secrets/
+**/credentials/
+**/*_secret.dart
+**/*_key.dart
+**/*_credentials.dart
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+*.hive
+*.lock
+
+# APK and AAB files (optional - uncomment if you don't want to track releases)
+# *.apk
+# *.aab
+
+# Keystore files - NEVER COMMIT!
+*.jks
+*.keystore
+**/*.jks
+**/*.keystore
+
+# Firebase config (if using Firebase)
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Azure and cloud configs
+azure_config.dart
+firebase_options.dart
+aws_config.dart
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS generated files
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100
+.Trashes
+
+# Test coverage
+coverage/
+test/coverage/
+.test_coverage.dart
+
+# Generated files
+*.freezed.dart
+*.config.dart
+!lib/config/azure_config.dart.template

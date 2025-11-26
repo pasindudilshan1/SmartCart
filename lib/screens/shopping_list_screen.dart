@@ -1182,7 +1182,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen>
         barcode: item['Barcode'] ?? item['barcode'],
         category: category,
         brand: item['Brand'] ?? item['brand'],
-        quantity: isLooseItem ? quantity : 1.0,
+        quantity: quantity,
         unit: item['Unit'] ?? item['unit'] ?? (isBeverage ? 'ml' : 'g'),
         actualWeight: isLooseItem ? totalActualWeight : actualWeightPerUnit,
         price: null,
