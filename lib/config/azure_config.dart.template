@@ -3,7 +3,7 @@
 
 class AzureConfig {
   // Azure Storage Account Configuration
-  static const String accountName = 'documentstoragepasindu';
+  static const String accountName = 'PASTE_YOUR_ACCOUNT_NAME';
   static const String accountKey = 'PASTE_YOUR_AZURE_ACCESS_KEY_HERE';
   
   // Table names
