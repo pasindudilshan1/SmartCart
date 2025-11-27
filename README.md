@@ -328,11 +328,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📞 Contact & Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/smartcart/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/smartcart/discussions)
-- **Email**: your.email@example.com
 
 ---
 
